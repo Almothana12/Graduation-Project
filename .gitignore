@@ -1,0 +1,4 @@
+*.log
+test.py
+.vscode
+grad.code-workspace
