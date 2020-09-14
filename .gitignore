@@ -1,4 +1,5 @@
 *.log
 test.py
-.vscode
+.vscode/
 grad.code-workspace
+__pycache__/
