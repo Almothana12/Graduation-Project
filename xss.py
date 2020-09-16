@@ -14,10 +14,6 @@ def scan_xss_dom(url):
     '''
     TODO
     '''
-    # payload = "<SCrIpT>window.exploitDetected = true</ScRiPt>"
-    # xss_url = url + payload
-
-    # r = session.get(xss_url)
     options = Options()
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-gpu")
@@ -38,8 +34,8 @@ def scan_xss_dom(url):
 
 
 if __name__ == "__main__":
-    url = "http://dvwa-win10/vulnerabilities/xss_d/"
-    # url = "https://xss-game.appspot.com/level1/frame"
+    # url = "http://dvwa-win10/vulnerabilities/xss_d/"
+    url = "https://xss-game.appspot.com/level1/frame"
     # url = "http://www.insecurelabs.org/Task/Rule1"
 
     forms = HTMLParser.get_all_forms(url, session)

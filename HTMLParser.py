@@ -28,7 +28,7 @@ def get_form_details(form):
     for input_tag in form.find_all("input"):
         input_type = input_tag.attrs.get("type")
         input_name = input_tag.attrs.get("name")
-        input_value = input_tag.attrs.get("value", "")
+        input_value = input_tag.attrs.get("value")
         inputs.append({"type": input_type, "name": input_name, "value": input_value})
 
     selects = []
@@ -45,6 +45,7 @@ def get_form_details(form):
         textareas.append({"name": textarea_name, "value": textarea_value})
 
     # put everything to the resulting dictionary
+    details["name"] = name
     details["action"] = action
     details["method"] = method
     details["inputs"] = inputs
@@ -67,14 +68,17 @@ def submit_form(form_details, url, payload, session):
     target_url = urljoin(url, form_details["action"])
     # target_url = url
     data = {} # the data to be submitted
-
+    print(form_details)
     # get the inputs from the form
     for input in form_details["inputs"]:
-        # replace all text and search values with `value` 
+        # replace all text and search values with the payload
         if input["type"] == "text" or input["type"] == "search":
-            input["value"] = payload 
-        input_name = input.get("name")
-        input_value = input.get("value")
+            input["value"] = payload
+        # if it doesn't have a type
+        if not input["type"]:
+            input["value"] = payload
+        input_name = input["name"]
+        input_value = input["value"]
         if input_name and input_value:
             # if input name and value are not None, 
             # then add them to the data of form submission
@@ -82,17 +86,17 @@ def submit_form(form_details, url, payload, session):
             data[input_name] = input_value
 
     for select in form_details["selects"]:
-        select["value"] = payload
-        select_name = select.get("name")
-        select_value = select.get("value")
+        # select["value"] = payload
+        select_name = select["name"]
+        select_value = payload
         if select_name and select_value:
             data[select_name] = select_value
     # print(form_details["selects"])
 
     for textarea in form_details["textareas"]:
-        textarea["value"] = payload
-        textarea_name = textarea.get("name")
-        textarea_value = textarea.get("value")
+        # textarea["value"] = payload
+        textarea_name = textarea["name"]
+        textarea_value = payload
         if textarea_name and textarea_value:
             data[textarea_name] = textarea_value
 
@@ -116,6 +120,7 @@ def submit_form(form_details, url, payload, session):
     # TODO: return only the data, leave the actual form submittion to the caller
     # print(unquote_plus(target_url + "?" + urlencode(data)))
     # print(target_url)
+    print(data)
     if form_details["method"] == "post":
         response = session.post(target_url, data=data)
         # print(rs.request.url)
