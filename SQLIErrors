@@ -1,4 +1,3 @@
-&lt;/font&gt;&lt;font face="Arial" size=2&gt;
 A syntax error has occurred
 ADODB.Field error
 ASP.NET is configured to show verbose error messages
@@ -12,7 +11,6 @@ Custom Error Message
 DB2 Driver
 DB2 Error
 DB2 ODBC
-Died at
 Disallowed Parent Path
 Error Diagnostic Information
 Error Message : Error loading required libraries.
@@ -44,8 +42,6 @@ ODBC Oracle
 ODBC SQL
 ODBC SQL Server
 OLE/DB provider returned message
-ORA-0
-ORA-1
 Oracle DB2
 Oracle Driver
 Oracle Error
@@ -71,20 +67,16 @@ Warning: Cannot modify header information - headers already sent
 Warning: Supplied argument is not a valid File-Handle resource in
 Warning: mysql_query()
 Warning: pg_connect(): Unable to connect to PostgreSQL server: FATAL
-You have an error in your SQL syntax near
+You have an error in your SQL syntax
 data source=
 detected an internal error [IBM][CLI Driver][DB2/6000]
-error
 include_path
 invalid query
 is not allowed to access
-line
 missing expression
 mySQL error with query
 mysql error
 on MySQL result index
-on line
-server at
 server object error
 supplied argument is not a valid MySQL result resource
 unexpected end of SQL command

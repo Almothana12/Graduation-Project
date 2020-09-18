@@ -36,6 +36,7 @@ def get_form_details(form):
         select_type = select_tag.attrs.get("type")
         select_name = select_tag.attrs.get("name")
         select_value = select_tag.attrs.get("value", "")
+
         selects.append({"type": select_type, "name": select_name, "value": select_value})
     
     textareas = []
@@ -68,7 +69,7 @@ def submit_form(form_details, url, payload, session):
     target_url = urljoin(url, form_details["action"])
     # target_url = url
     data = {} # the data to be submitted
-    print(form_details)
+    # print(form_details)
     # get the inputs from the form
     for input in form_details["inputs"]:
         # replace all text and search values with the payload
@@ -120,7 +121,10 @@ def submit_form(form_details, url, payload, session):
     # TODO: return only the data, leave the actual form submittion to the caller
     # print(unquote_plus(target_url + "?" + urlencode(data)))
     # print(target_url)
-    print(data)
+    # print(data)
+    if not data:
+        print("NO DATA")
+        return
     if form_details["method"] == "post":
         response = session.post(target_url, data=data)
         # print(rs.request.url)
