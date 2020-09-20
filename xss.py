@@ -1,15 +1,26 @@
-# import requests
-# from pprint import pprint
-from bs4 import BeautifulSoup
+import HTMLParser
+import logging
 from urllib.parse import unquote_plus
+
+import requests
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-import HTMLParser
 
-def scan_xss_dom(url):
-    '''
-    TODO
-    '''
+import logformatter
+
+log = logging.getLogger(__name__)
+
+def check_dom_xss(url: str):
+    """Check `url` for DOM-Based XSS
+
+    Args:
+        url (str): The URL of the page
+
+    Returns:
+        bool: True if DOM-Based XSS found, False otherwise
+    """
+    log.debug(f"Checking DOM XSS on {url}")
     options = Options()
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-gpu")
@@ -26,14 +37,25 @@ def scan_xss_dom(url):
     browser.get(url)
     exploitDetected = browser.execute_script("return window.exploitDetected")
     browser.quit()
-    return exploitDetected
+    log.debug(f"Finished checking DOM XSS")
+    if exploitDetected:
+        return True
+    else:
+        return False
 
 
-def check(session, url):
+def check(session: requests.Session, url: str) -> bool:
+    """Check `url` for XSS vulnerability
+
+    Args:
+        session (requests.Session): A session object
+        url (str): The URL for the page
+
+    Returns:
+        bool: True if XSS detected, False otherwise
     """
 
-    """
-    forms = HTMLParser.get_all_forms(url, session)
+    forms = HTMLParser.get_all_forms(session, url)
     vulnerable = False
 
     # Check for DOM XSS first
@@ -42,30 +64,32 @@ def check(session, url):
         form_details = HTMLParser.get_form_details(form)
         response = HTMLParser.submit_form(form_details, url, dom_payload, session)
         dom_url = unquote_plus(response.url)
-        vulnerable = scan_xss_dom(dom_url)
+        vulnerable = check_dom_xss(dom_url)
     if vulnerable:
-        print(f"DOM-based XSS detected on {response.url}")
-        print(f"payload used: {dom_payload}")
+        log.warning(f"DOM-based XSS detected on {response.url}")
+        log.info(f"payload used: {dom_payload}")
+        if form_details['name']:
+            log.info(f"Form name: {form_details['name']}")
         return True
     # if no DOM XSS detected, check for reflected:
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
         with open("XSSPayloads") as payloads:
             for payload in payloads:
+                payload = payload.replace("\n", "")  # remove newline char
                 # print(f"Testing:{payload}")
                 response = HTMLParser.submit_form(form_details, url, payload, session)
                 if payload.lower() in response.text.lower():
-                    print(f"XSS Detected on {response.url}")
-                    print(f"Payload: {payload}")
-                    # print(f"[*] Form details:")
-                    # pprint(form_details)
+                    log.warning(f"XSS Detected on {response.url}")
+                    log.info(f"Payload: {payload}")
+                    if form_details['name']:
+                        log.info(f"Form name: {form_details['name']}")
                     vulnerable = True
                     break
     return vulnerable
 
 
 if __name__ == "__main__":
-    import requests
     url = "http://dvwa-win10/vulnerabilities/xss_d/"
     # url = "https://xss-game.appspot.com/level1/frame"
     # url = "http://www.insecurelabs.org/Task/Rule1"

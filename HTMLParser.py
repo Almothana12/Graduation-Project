@@ -1,19 +1,20 @@
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlencode, unquote_plus
-import requests
+import logging
+from urllib.parse import unquote_plus, urlencode, urljoin
 
-def get_all_forms(url, session):
-    """Given a `url`, it returns all forms from the HTML content"""
+import requests
+from bs4 import BeautifulSoup
+import bs4
+
+log = logging.getLogger(__name__)
+
+def get_all_forms(session: requests.Session, url: str) -> bs4.element.ResultSet:
+    """Return all the forms from the given `url`"""
     soup = BeautifulSoup(session.get(url).content, "html.parser")
     return soup.find_all("form")
 
-def get_form_details(form):
-    """
-    This function extracts all possible useful information about an HTML `form`
-    """
+def get_form_details(form: bs4.element.Tag) -> dict:
+    """Return a dict containing details about the given `form`"""
     details = {}
-    
-    # print(form)
     # get the form action
     if form.attrs.get("action"):
         action = form.attrs.get("action").lower()
@@ -55,21 +56,27 @@ def get_form_details(form):
 
     return details
 
-def submit_form(form_details, url, payload, session):
+
+def submit_form(form_details: dict, 
+                url: str, 
+                payload: str, 
+                session: requests.Session) -> requests.models.Response:
+    """Fill the given `form` with `payload` and submit it to `url`
+
+    Args:
+        form_details (dict): A dictionary with the form's details
+        url (str): The URL of the form
+        payload (str): the value to be submitted to the form
+        session (requests.Session): A Session object
+
+    Returns:
+        requests.models.Response: The HTTP response from the web server
     """
-    Submits a form given in `form_details`
-    Params:
-        form_details (list): a dictionary that contain form information
-        url (str): the URL for the form
-        value (str): the value to be submitted to the form
-        session (requests.Session): a session object for submitting the form
-    Returns the HTTP Response after form submission
-    """
-    # construct the full URL (if the url provided in action is relative)
+    log.debug(f"submit_form: form_details={form_details} URL={url} payload={payload}")
+
+    # construct the full URL if the url provided in action is relative
     target_url = urljoin(url, form_details["action"])
-    # target_url = url
     data = {} # the data to be submitted
-    # print(form_details)
     # get the inputs from the form
     for input in form_details["inputs"]:
         # replace all text and search values with the payload
@@ -78,7 +85,7 @@ def submit_form(form_details, url, payload, session):
         # if it doesn't have a type
         if not input["type"]:
             input["value"] = payload
-        input_name = input["name"]
+        input_name = input["name"] 
         input_value = input["value"]
         if input_name and input_value:
             # if input name and value are not None, 
@@ -101,39 +108,15 @@ def submit_form(form_details, url, payload, session):
         if textarea_name and textarea_value:
             data[textarea_name] = textarea_value
 
-
-##############################################
-    # for select_tag in form_details["selects"]:
-    #     if select_tag["type"] == "text":
-    #         select_tag["value"] = payload
-    #     data[select_tag["name"]] = payload
-    # for input_tag in form_details["inputs"]:
-    #     if input_tag["value"] or input_tag["type"] == "hidden":
-    #                 # any input form that has some value or hidden,
-    #                 # just use it in the form body
-    #         try:
-    #             data[input_tag["name"]] = input_tag["value"] + payload
-    #         except:
-    #             pass
-    #     elif input_tag["type"] != "submit":
-    #         # all others except submit, use some junk data with special character
-    #         data[input_tag["name"]] = f"1{payload}"
-    # TODO: return only the data, leave the actual form submittion to the caller
-    # print(unquote_plus(target_url + "?" + urlencode(data)))
-    # print(target_url)
-    # print(data)
     if not data:
-        print("NO DATA")
+        log.warning(f"submit_form: No data to submit for form: {form_details} in {url}")
         return
     if form_details["method"] == "post":
         response = session.post(target_url, data=data)
-        # print(rs.request.url)
-
+        log.debug(f"submit_form: POST: {response.url}")
     elif form_details["method"] == "get":
-        # GET request
-        # response = session.get(unquote_plus(target_url + "?" + urlencode(data)))
         response = session.get(target_url, params=data)
-        # print(response.url)
+        log.debug(f"submit_form: GET: {response.url}")
     else:
-        print("NO METHOD")
+        log.warning("submit_form: Invalid or no form method")
     return response

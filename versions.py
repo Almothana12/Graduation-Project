@@ -1,10 +1,15 @@
-import re
 import logging
-import requests
-from packaging.version import parse as parse_version
-from colorama import init, Fore, Back, Style
+import re
 
-init() # Initialise Colorama
+import requests
+from colorama import Back, Fore, Style, init
+from packaging.version import parse as parse_version
+
+import logformatter
+
+init()  # Initialise Colorama
+
+log = logging.getLogger(__name__)
 
 # A dict containing the lastest supported version of each program
 versions = {
@@ -15,19 +20,17 @@ versions = {
     "IIS": parse_version("10")
 }
 
-
-# print(response.status_code)
-
 headers = []
 
-# print(headers)
 
+def get_version(name: str) -> str:
+    """Search for `name` in the HTTP header and return the version of it
 
+    Args:
+        name (str): A name of an application
 
-
-def get_version(name):
-    """
-        TODO
+    Returns:
+        str: The version of the application, empty string if doesn't exist
     """
     for header in headers:
         match = re.search(name.lower() + r"(\S*)", header.lower())
@@ -38,40 +41,52 @@ def get_version(name):
         return ""
 
 
-def print_versions(url):
-    response = requests.get(url)
+def print_versions(session, url) -> None:
+    """Search and Print the server's version
+
+    Args:
+        session (requests.Session): A session object
+        url (str): The URL of the server
+    """
+    response = session.get(url)
+    # Fill the headers list
     if 'server' in response.headers:
+        log.debug(f"versions: 'server' header found: {response.headers['server']}")
         headers.append(response.headers['server'])
     if 'x-powered-by' in response.headers:
+        log.debug(f"versions: 'x-powered-by' header found: {response.headers['x-powered-by']}")
         headers.append(response.headers['x-powered-by'])
     if 'X-Runtime' in response.headers:
+        log.debug(f"versions: 'X-Runtime' header found: {response.headers['X-Runtime']}")
         headers.append(response.headers['X-Runtime'])
     if 'X-Version' in response.headers:
+        log.debug(f"versions: 'X-Version' header found: {response.headers['X-Version']}")
         headers.append(response.headers['X-Version'])
     if 'X-AspNet-Version' in response.headers:
+        log.debug(f"versions: 'X-AspNet-Version' header found: {response.headers['X-AspNet-Version']}")
         headers.append(response.headers['X-AspNet-Version'])
 
     if not headers:
-        print("could not get server version info")
+        log.info("Could not get server version info")
         return
-
+    # Print the found versions 
     for name, supported_version in versions.items():
         server_version = get_version(name)
         if server_version:
             server_version = parse_version(server_version)
-            print(f"{name} version: {server_version}", end='')
             if server_version < supported_version:
-                print(f"{Fore.RED}  (outdated){Style.RESET_ALL}")
+                log.warning(f"{name} version: {server_version}  {Fore.RED}(outdated){Style.RESET_ALL}")
             else:
-                print(f"{Fore.GREEN}  (still supported){Style.RESET_ALL}")
+                log.info(f"{name} version: {server_version}  {Fore.GREEN}(still supported){Style.RESET_ALL}")
 
 if __name__ == "__main__":
+    session = requests.Session()
+    session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
+    session.headers["Cookie"] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
     url = "http://dvwa-win10"
-    # response = requests.get("http://dvwa-ubuntu")
-    # response = requests.get("http://centos82")
-    # response = requests.get("http://bee-box")
-    # response = requests.get("http://windows7")
-    # response = requests.get("http://www.insecurelabs.org/Task/Rule1")
-    print_versions(url)
-
-
+    # url = "http://dvwa-ubuntu"
+    # url = "http://centos82"
+    # url = "http://bee-box"
+    # url = "http://windows7"
+    # url = "http://www.insecurelabs.org/Task/Rule1"
+    print_versions(session, url)
