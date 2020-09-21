@@ -1,0 +1,12 @@
+TEST && sleep _TIME_
+TEST; sleep _TIME_
+TEST || sleep _TIME_
+TEST | sleep _TIME_
+TEST |sleep _TIME_
+`sleep _TIME_`
+TEST & sleep _TIME_
+TEST&sleep _TIME_
+TEST && ping 127.0.0.1 -n _TIME_ > nul
+TEST || ping 127.0.0.1 -n _TIME_ > nul
+TEST & ping 127.0.0.1 -n _TIME_ > nul
+TEST | ping 127.0.0.1 -n _TIME_ > nul
