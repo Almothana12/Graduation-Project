@@ -16,10 +16,7 @@ def get_form_details(form: bs4.element.Tag) -> dict:
     """Return a dict containing details about the given `form`"""
     details = {}
     # get the form action
-    if form.attrs.get("action"):
-        action = form.attrs.get("action").lower()
-    else:
-        action = form.attrs.get("action")
+    action = form.attrs.get("action")
     # get the form method
     method = form.attrs.get("method", "get").lower()
     # get the form name
@@ -113,7 +110,7 @@ def submit_form(form_details: dict,
         return
     if form_details["method"] == "post":
         response = session.post(target_url, data=data)
-        log.debug(f"submit_form: POST: {response.url}")
+        log.debug(f"submit_form: POST: {response.url} Data: {data}")
     elif form_details["method"] == "get":
         response = session.get(target_url, params=data)
         log.debug(f"submit_form: GET: {response.url}")
