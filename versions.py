@@ -67,17 +67,22 @@ def print_versions(session, url) -> None:
         headers.append(response.headers['X-AspNet-Version'])
 
     if not headers:
-        log.info("Could not get server version info")
+        log.debug("Could not get server version info")
         return
     # Print the found versions 
     for name, supported_version in versions.items():
         server_version = get_version(name)
         if server_version:
+            version_found = True
             server_version = parse_version(server_version)
             if server_version < supported_version:
                 log.warning(f"{name} version: {server_version}  {Fore.RED}(outdated){Style.RESET_ALL}")
             else:
-                log.info(f"{name} version: {server_version}  {Fore.GREEN}(still supported){Style.RESET_ALL}")
+                log.info(f"{name} version: {server_version}")
+    if version_found:
+        log.warning("version found")  # TODO write a helpful message
+    else:
+        log.debug("Could not get server version info")
 
 if __name__ == "__main__":
     session = requests.Session()
