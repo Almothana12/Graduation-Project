@@ -10,7 +10,7 @@ import logformatter
 log = logging.getLogger(__name__)
 
 def is_vulnerable(response: requests.Response) -> bool:
-    """Check if the content of the `response` has an SQL error
+    """Check if the content of the `response` has an SQL error or not
 
     Args:
         response (requests.Response): A response object
@@ -22,12 +22,13 @@ def is_vulnerable(response: requests.Response) -> bool:
         for error in SQLIErrors:
             error = error.replace("\n", "")
             if error.lower() in response.text.lower():
+                # If an error is found in the HTML page
                 return True
     return False
 
 
-def timed_sql(session: requests.Session, url: str) -> bool:
-    """Check if `url` has an SQLi vulnerability using time-based method
+def time_based(session: requests.Session, url: str, time=5) -> bool:
+    """Check for SQLi on `url` using time-based method
 
     Args:
         session (requests.Session): A Session object
@@ -36,39 +37,35 @@ def timed_sql(session: requests.Session, url: str) -> bool:
     Returns:
         bool: True if SQLi detected, False otherwise
     """
-    log.debug("timed_sql(%s)", url)
     forms = HTMLParser.get_all_forms(session, url)
-    time = 5
     t1 = session.get(url).elapsed.total_seconds()
     t2 = session.get(url).elapsed.total_seconds()
     t3 = session.get(url).elapsed.total_seconds()
     avg = (t1 + t2 + t3) / 3
     expected = time + avg
     error = expected * 0.2
-    log.debug("timed_sql: avg=%s, error=%s, expected=%s", avg, error, expected)
+    log.debug("sqli.time_based: avg=%s, error=%s, expected=%s", avg, error, expected)
+    vulnerable = False
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
         with open("payloads/SQLTimePayloads") as payloads:
             for payload in payloads:
                 payload = payload.replace("\n", "")
-                log.debug("timed_sql: Testing: %s", payload)
+                payload = payload.replace("_TIME_", str(time))
+                log.debug("sqli.time_based: Testing: %s", payload)
                 response = HTMLParser.submit_form(
                     form_details, url, payload, session)
                 elapsed = response.elapsed.total_seconds()
-                log.debug(f"timed_sql: elapsed={elapsed}")
+                log.debug(f"sqli.time_based: elapsed={elapsed}")
                 if expected - error <= elapsed <= expected + error:
                     log.warning(f"Time-based SQLi Detected on {response.url}")
                     log.info(f"Payload: {payload}")
-                    # print(f"SQL Injection Detected on {response.url}")
-                    # print(f"Payload: {payload}")
-                    return True
-    return False
+                    vulnerable = True
+    return vulnerable
 
 
-def check(session: requests.Session,
-          url: str,
-          check_timed: bool) -> bool:
-    """Check of SQL
+def check(session: requests.Session, url: str,) -> bool:
+    """Check for SQLi vulnerability on `url`
 
     Args:
         session (requests.Session): A Session object
@@ -78,12 +75,7 @@ def check(session: requests.Session,
     Returns:
         bool: True if SQLi detected, False otherwise
     """
-    log.debug("sqli.check(%s, %s)", url, check_timed)
     vulnerable = False
-    if check_timed:
-        vulnerable = timed_sql(session, url)
-    if vulnerable:
-        return True
     forms = HTMLParser.get_all_forms(session, url)
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
@@ -96,8 +88,9 @@ def check(session: requests.Session,
                 if is_vulnerable(response):
                     log.warning(f"SQLi Detected on {response.url}")
                     log.info(f"Payload: {payload}")
-
-                    return True
+                    vulnerable = True
+                    break
+    return vulnerable
 
 
 if __name__ == "__main__":
@@ -105,4 +98,5 @@ if __name__ == "__main__":
     session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
     session.headers["Cookie"] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
     url = "http://dvwa-win10/vulnerabilities/sqli/"
-    check(session, url, False)
+    # time_based(session, url)
+    check(session, url)
