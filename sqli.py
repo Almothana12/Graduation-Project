@@ -4,7 +4,6 @@ import re
 from urllib.parse import unquote_plus, urljoin
 
 import requests
-from bs4 import BeautifulSoup
 
 import logformatter
 
@@ -19,7 +18,7 @@ def is_vulnerable(response: requests.Response) -> bool:
     Returns:
         bool: True if an error is found in the content of `response`, False otherwise
     """
-    with open("SQLIErrors") as SQLIErrors:
+    with open("payloads/SQLIErrors") as SQLIErrors:
         for error in SQLIErrors:
             error = error.replace("\n", "")
             if error.lower() in response.text.lower():
@@ -49,7 +48,7 @@ def timed_sql(session: requests.Session, url: str) -> bool:
     log.debug("timed_sql: avg=%s, error=%s, expected=%s", avg, error, expected)
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
-        with open("SQLTimePayloads") as payloads:
+        with open("payloads/SQLTimePayloads") as payloads:
             for payload in payloads:
                 payload = payload.replace("\n", "")
                 log.debug("timed_sql: Testing: %s", payload)
@@ -88,7 +87,7 @@ def check(session: requests.Session,
     forms = HTMLParser.get_all_forms(session, url)
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
-        with open("SQLPayloads") as payloads:
+        with open("payloads/SQLPayloads") as payloads:
             for payload in payloads:
                 payload = payload.replace("\n", "")  # remove newline char
                 # print(f"Testing: {payload}")

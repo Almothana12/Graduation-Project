@@ -74,7 +74,7 @@ def check(session: requests.Session, url: str) -> bool:
     # if no DOM XSS detected, check for reflected:
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
-        with open("XSSPayloads") as payloads:
+        with open("payloads/XSSPayloads") as payloads:
             for payload in payloads:
                 payload = payload.replace("\n", "")  # remove newline char
                 # print(f"Testing:{payload}")
