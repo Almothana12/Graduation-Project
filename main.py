@@ -30,6 +30,5 @@ def main():
     command_injection.time_based(session, url)
 
 
-
 if __name__ == "__main__":
     main()

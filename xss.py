@@ -76,6 +76,8 @@ def check(session: requests.Session, url: str) -> bool:
         form_details = HTMLParser.get_form_details(form)
         with open("payloads/XSSPayloads") as payloads:
             for payload in payloads:
+                if payload.startswith('#'):  # Comment
+                    continue
                 payload = payload.replace("\n", "")  # remove newline char
                 # print(f"Testing:{payload}")
                 response = HTMLParser.submit_form(form_details, url, payload, session)
