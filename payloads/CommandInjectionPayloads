@@ -1,0 +1,5 @@
+ttt || echo TEST
+ttt && echo TEST
+123 & echo TEST
+123; echo TEST
+`echo TEST`
