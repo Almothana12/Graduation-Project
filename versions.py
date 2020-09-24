@@ -41,7 +41,7 @@ def get_version(name: str) -> str:
         return ""
 
 
-def print_versions(session, url) -> None:
+def check(session, url) -> None:
     """Search and Print the server's version
 
     Args:
@@ -94,4 +94,4 @@ if __name__ == "__main__":
     # url = "http://bee-box"
     # url = "http://windows7"
     # url = "http://www.insecurelabs.org/Task/Rule1"
-    print_versions(session, url)
+    check(session, url)
