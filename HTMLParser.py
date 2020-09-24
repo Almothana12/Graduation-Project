@@ -69,31 +69,34 @@ def submit_form(form_details: dict,
     Returns:
         requests.models.Response: The HTTP response from the web server
     """
-    log.debug(f"submit_form: form_details={form_details} URL={url} payload={payload}")
+    # log.debug(f"submit_form: form_details={form_details} URL={url} payload={payload}")
 
     # construct the full URL if the url provided in action is relative
     target_url = urljoin(url, form_details["action"])
+    payload_injected = False
     data = {} # the data to be submitted
     # get the inputs from the form
     for input in form_details["inputs"]:
         # replace all text and search values with the payload
         if input["type"] == "text" or input["type"] == "search":
             input["value"] = payload
+            payload_injected = True
         # if it doesn't have a type
         if not input["type"]:
             input["value"] = payload
+            payload_injected = True
         input_name = input["name"] 
         input_value = input["value"]
         if input_name and input_value:
             # if input name and value are not None, 
             # then add them to the data of form submission
-            
             data[input_name] = input_value
 
     for select in form_details["selects"]:
         # select["value"] = payload
         select_name = select["name"]
         select_value = payload
+        payload_injected = True
         if select_name and select_value:
             data[select_name] = select_value
     # print(form_details["selects"])
@@ -102,18 +105,19 @@ def submit_form(form_details: dict,
         # textarea["value"] = payload
         textarea_name = textarea["name"]
         textarea_value = payload
+        payload_injected = True
         if textarea_name and textarea_value:
             data[textarea_name] = textarea_value
 
-    if not data:
-        log.warning(f"submit_form: No data to submit for form: {form_details} in {url}")
-        return
+    if not data or not payload_injected:
+        log.debug(f"submit_form: No data to submit for form: {form_details} in {url}")
+        return ""
     if form_details["method"] == "post":
         response = session.post(target_url, data=data)
-        log.debug(f"submit_form: POST: {response.url} Data: {data}")
+        # log.debug(f"submit_form: POST: {response.url} Data: {data}")
     elif form_details["method"] == "get":
         response = session.get(target_url, params=data)
-        log.debug(f"submit_form: GET: {response.url}")
+        # log.debug(f"submit_form: GET: {response.url}")
     else:
         log.warning("submit_form: Invalid or no form method")
     return response

@@ -29,6 +29,7 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
     Args:
         session (requests.Session): A Session object
         url (str): The URL of the page
+        time (int, optional): the time to sleep. Defaults to 10.
 
     Returns:
         bool: True if Command Injection detected, False otherwise
@@ -49,8 +50,9 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
                 payload = payload.replace("\n", "")
                 payload = payload.replace("_TIME_", str(time))
                 log.debug("ci.time_based: Testing: %s", payload)
-                response = HTMLParser.submit_form(
-                    form_details, url, payload, session)
+                response = HTMLParser.submit_form(form_details, url, payload, session)
+                if not response:
+                    continue
                 elapsed = response.elapsed.total_seconds()
                 log.debug(f"ci.time_based: elapsed={elapsed}")
                 if expected - error <= elapsed <= expected + error:
@@ -80,8 +82,9 @@ def check(session: requests.Session, url: str) -> bool:
                     continue
                 payload = payload.replace("\n", "")  # remove newline char
                 log.debug(f"ci.time_based: Testing: {payload}")
-                response = HTMLParser.submit_form(
-                    form_details, url, payload, session)
+                response = HTMLParser.submit_form(form_details, url, payload, session)
+                if not response:
+                    continue
                 if is_vulnerable(response):
                     log.warning(f"Command Injection found on {response.url}")
                     log.info(f"Payload: {payload}")
