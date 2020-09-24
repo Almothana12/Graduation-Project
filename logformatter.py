@@ -155,5 +155,6 @@ setup_logging(
     logfile_format="%(color_on)s[%(created)d] [%(levelname)s] %(message)s%(color_off)s"
 )
 
-# logging.getLogger("urllib3").setLevel(logging.WARNING)
-# logging.getLogger("selenium").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("selenium").setLevel(logging.WARNING)
+logging.getLogger('chardet.charsetprober').setLevel(logging.INFO)
