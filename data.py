@@ -15,13 +15,13 @@ def check(session: requests.Session, url: str) -> None:
     phone_regex = r"(\b\d{10}\b)|(\+\d{10,15}\b)"
     iterator = re.finditer(phone_regex, page) # find all
     for match in iterator: # loop through the matches
-        log.warning(f"phone number found: {match.group()}")
+        log.warning(f"phone number found: {match.group()} on {url}")
 
     # match an Email address:
     email_regex = r"[a-zA-Z0-9\._\-\+]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9]+)+"
     iterator = re.finditer(email_regex, page)
     for match in iterator:
-        log.warning(f"email found: {match.group()}")
+        log.warning(f"email found: {match.group()} on {url}")
 
 if __name__ == "__main__":
     url = "http://dvwa-win10/"
