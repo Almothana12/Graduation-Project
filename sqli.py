@@ -55,10 +55,11 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
                 log.debug("sqli.time_based: Testing: %s", payload)
                 response = HTMLParser.submit_form(form_details, url, payload, session)
                 if not response:
+                    log.debug(response)
                     continue
                 elapsed = response.elapsed.total_seconds()
                 log.debug(f"sqli.time_based: elapsed={elapsed}")
-                if expected - error <= elapsed <= expected + error:
+                if expected - error <= elapsed:
                     log.warning(f"Time-based SQLi Detected on {response.url}")
                     log.info(f"Payload: {payload}")
                     vulnerable = True
@@ -91,6 +92,10 @@ def check(session: requests.Session, url: str,) -> bool:
                     continue
                 if is_vulnerable(response):
                     log.warning(f"SQLi Detected on {response.url}")
+                    try:
+                        log.info(f"Form name: {form['name']}")
+                    except KeyError:
+                        pass
                     log.info(f"Payload: {payload}")
                     vulnerable = True
                     break
