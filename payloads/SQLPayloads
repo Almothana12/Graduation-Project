@@ -59,3 +59,4 @@ AND false
 -- -
 ;%00
 `
+' UNION SELECT "text1","text2";-- -
