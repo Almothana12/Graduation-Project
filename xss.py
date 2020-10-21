@@ -39,10 +39,12 @@ def check_dom(url: str, str_cookie=None):
         for key, morsel in cookie.items():
             cookies[key] = morsel.value
         browser.get(url)
+        # browser.delete_all_cookies()
         for key in cookies.keys():
             value = cookies[key]
             browser.add_cookie({"name": key, "value": value})
     browser.get(url)
+    # print(browser.get_cookie("security"))
     exploitDetected = browser.execute_script("return window.exploitDetected")
     browser.quit()
     log.debug(f"Finished checking DOM XSS")
@@ -75,7 +77,10 @@ def check(session: requests.Session, url: str, dom=True, cookie=None) -> bool:
             if not response:
                 continue
             dom_url = unquote_plus(response.url)
-            vulnerable = check_dom(dom_url, session.headers['Cookie'])
+            try:
+                vulnerable = check_dom(dom_url, session.headers['Cookie'])
+            except KeyError:
+                vulnerable = check_dom(dom_url, None)
         if vulnerable:
             log.warning(f"DOM-based XSS detected on {response.url}")
             log.info(f"payload used: {dom_payload}")
