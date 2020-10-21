@@ -145,16 +145,17 @@ def windows_enable_ansi_terminal():
 
 setup_logging(
     console_log_output="stdout",
-    console_log_level="info", 
+    console_log_level="INFO", 
     console_log_color=True,
     console_format="%(color_on)s[%(levelname)s] %(message)s%(color_off)s",
     logfile_file="logs/main.log",
     logfile_mode="w",
-    logfile_log_level="debug",
+    logfile_log_level="DEBUG",
     logfile_log_color=False,
     logfile_format="%(color_on)s[%(created)d] [%(levelname)s] %(message)s%(color_off)s"
 )
 
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("selenium").setLevel(logging.WARNING)
-logging.getLogger('chardet.charsetprober').setLevel(logging.INFO)
+logging.getLogger('chardet').setLevel(logging.INFO)
+logging.getLogger('bs4').setLevel(logging.ERROR)
