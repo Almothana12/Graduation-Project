@@ -81,7 +81,7 @@ def check(session: requests.Session, url: str) -> bool:
                 if payload.startswith('#'):  # Comment
                     continue
                 payload = payload.replace("\n", "")  # remove newline char
-                log.debug(f"ci.time_based: Testing: {payload}")
+                log.debug(f"ci: Testing: {payload}")
                 response = HTMLParser.submit_form(form_details, url, payload, session)
                 if not response:
                     continue
