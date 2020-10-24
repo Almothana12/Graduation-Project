@@ -70,6 +70,7 @@ def check(session, url) -> None:
         log.debug("Could not get server version info")
         return
     # Print the found versions 
+    version_found = False
     for name, supported_version in versions.items():
         server_version = get_version(name)
         if server_version:
