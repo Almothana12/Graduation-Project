@@ -45,9 +45,13 @@ def main():
     # print(args)
     
     if args['--gui'] or all(not x for x in args.values()):
+        logformatter.start_logging(console_file="logs/info.log")
         print("Launching GUI...")  # TODO GUI
         gui.run()
         return
+    else:
+        logformatter.start_logging(console_file="stdout")
+        
     if args['<url>']:
         if not args['<url>'].startswith("http"):
             url = "http://" + args['<url>']

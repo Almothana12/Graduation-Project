@@ -64,12 +64,20 @@ def setup_logging(console_log_output, console_log_level, console_log_color, cons
     console_log_output = console_log_output.lower()
     if (console_log_output == "stdout"):
         console_log_output = sys.stdout
+        console_handler = logging.StreamHandler(console_log_output)
     elif (console_log_output == "stderr"):
         console_log_output = sys.stderr
+        console_handler = logging.StreamHandler(console_log_output)
     else:
-        print("Failed to set console output: invalid output: '%s'" % console_log_output)
-        return False
-    console_handler = logging.StreamHandler(console_log_output)
+        # print("Failed to set console output: invalid output: '%s'" % console_log_output)
+        # return False
+        try:
+            console_handler = logging.FileHandler(console_log_output, mode=logfile_mode)
+        except Exception as exception:
+            print("Failed to set up log file: %s" % str(exception))
+            return False
+
+
 
     # Set console log level
     try:
@@ -143,17 +151,19 @@ def windows_enable_ansi_terminal():
 # if (__name__ == "__main__"):
 #     sys.exit(main())
 
-setup_logging(
-    console_log_output="stdout",
-    console_log_level="INFO", 
-    console_log_color=True,
-    console_format="%(color_on)s[%(levelname)s] %(message)s%(color_off)s",
-    logfile_file="logs/main.log",
-    logfile_mode="w",
-    logfile_log_level="DEBUG",
-    logfile_log_color=False,
-    logfile_format="%(color_on)s[%(created)d] [%(levelname)s] %(message)s%(color_off)s"
-)
+def start_logging(console_file="stdout", console_color="True"):
+    windows_enable_ansi_terminal()
+    setup_logging(
+        console_log_output=console_file,
+        console_log_level="INFO", 
+        console_log_color=console_color,
+        console_format="%(color_on)s[%(levelname)s] %(message)s%(color_off)s",
+        logfile_file="logs/main.log",
+        logfile_mode="w",
+        logfile_log_level="DEBUG",
+        logfile_log_color=False,
+        logfile_format="%(color_on)s[%(created)d] [%(levelname)s] %(message)s%(color_off)s"
+    )
 
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("selenium").setLevel(logging.WARNING)

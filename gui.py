@@ -22,7 +22,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.scanButton.clicked.connect(self.scan)
 
     def scan(self):
-        print("Dasd")
+        # self.textBrowser.clear()
+
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
         check_xss = self.xssCheckBox.isChecked()
@@ -33,6 +34,9 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         if url:
             if not url.startswith("http"):
                 url = "http://" + url
+        else:
+            qtw.QMessageBox.critical(self, 'Fail', 'No URL Entered')
+            return
         if cookie:
             session.headers['Cookie'] = cookie
 
@@ -44,34 +48,42 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         #     return
         if check_version:
             versions.check(session, url)
+            output = open('logs/info.log')
+            self.textBrowser.setPlainText(output.read())    
         if check_data:
             data.check(session, url)
+            output = open('logs/info.log')
+            self.textBrowser.setPlainText(output.read()) 
         if check_sqli:
             sqli.check(session, url)
+            output = open('logs/info.log')
+            self.textBrowser.setPlainText(output.read())    
             # if not args['--no-time-based']:
             #     sqli.time_based(session, url)
         if check_xss:
             # dom = not args['--no-dom']
             # cookie = args['--cookie']
             xss.check(session, url, True, cookie)
+            output = open('logs/info.log')
+            self.textBrowser.setPlainText(output.read())     
         if check_ci:
             vulnerable = command_injection.check(session, url)
+            output = open('logs/info.log')
+            self.textBrowser.setPlainText(output.read())   
             if not vulnerable:
                 command_injection.time_based(session, url)
+                output = open('logs/info.log')
+                self.textBrowser.setPlainText(output.read()) 
 
+        # output = open('logs/test.log')
+        output = open('logs/info.log')
+        self.textBrowser.setPlainText(output.read())
         self.show_popup()
+        output.close()
+        open('logs/info.log', 'w').close()
 
-        # print(url)
-        # print(cookie)
-        # print(xss)
-        # self.textBrowser.
-        # self.textBrowser.setText("url: " + url)
-        # self.textBrowser.setText("cookie: " + cookie)
-        # self.textBrowser.setText("xss: " + str(xss))
-        # self.textBrowser.setText("sqli: " + str(sqli))
-        # self.textBrowser.setText("ci: " + str(ci))
-        # self.textBrowser.setText("version: " + str(version))
-        # self.textBrowser.setText("data: " + str(data))
+
+
     def show_popup(self):
         msg = qtw.QMessageBox()
         msg.setWindowTitle("Scan Complete")
