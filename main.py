@@ -1,5 +1,5 @@
 usage = """
-Test doc
+Scan a website for common web vulnerabilites
 
 Usage:
     main.py
@@ -40,10 +40,8 @@ session.headers['Cookie'] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
 
 
 def main():
-    # url = "http://dvwa-win10/vulnerabilities/xss_r/"
     args = docopt(usage)
-    # print(args)
-    
+
     if args['--gui'] or all(not x for x in args.values()):
         logformatter.start_logging(console_file="logs/info.log")
         print("Launching GUI...")  # TODO GUI
@@ -51,7 +49,7 @@ def main():
         return
     else:
         logformatter.start_logging(console_file="stdout")
-        
+
     if args['<url>']:
         if not args['<url>'].startswith("http"):
             url = "http://" + args['<url>']
@@ -60,7 +58,7 @@ def main():
     if args['--cookie']:
         session.headers['Cookie'] = args['--cookie']
 
-    if not valid_url(url):
+    if not valid_url(url, session):
         return
 
     if args['--crawl']:
@@ -143,7 +141,7 @@ def crawl(url, args):
             command_injection.time_based(session, url)
 
 
-def valid_url(url):
+def valid_url(url, session):
     """Check if the `url` is valid and reachable
 
     Args:

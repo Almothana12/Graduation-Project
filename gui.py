@@ -3,9 +3,13 @@ import sys
 import requests
 from PyQt5 import QtCore as qtc
 from PyQt5 import QtWidgets as qtw
+from threading import Thread
+import time
 
+# import logthread
 import command_injection
 import data
+import main
 import sqli
 import versions
 import xss
@@ -15,14 +19,31 @@ from ui_form import Ui_MainWindow
 session = requests.Session()
 session.headers['Cookie'] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
 
+log_started = False
+
+
 class MainWindow(qtw.QMainWindow, Ui_MainWindow):
+
+    start_log = qtc.pyqtSignal()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
         self.scanButton.clicked.connect(self.scan)
+        # Create a worker object and a thread
+        self.worker = Worker()
+        self.worker_thread = qtc.QThread()
+        self.worker.log_signal.connect(self.show_log)
+        self.start_log.connect(self.worker.run)
+
+        # Assign the worker to the thread and start the thread
+        self.worker.moveToThread(self.worker_thread)
+        self.worker_thread.start()
+
+        self.start_log.emit()
 
     def scan(self):
-        # self.textBrowser.clear()
+        open('logs/info.log', 'w').close()
 
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
@@ -31,58 +52,67 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         check_ci = self.ciCheckBox.isChecked()
         check_version = self.versionCheckBox.isChecked()
         check_data = self.dataCheckBox.isChecked()
+
         if url:
-            if not url.startswith("http"):
+            # if the URL doesn't start with http://, add it to the begining to the URL
+            if not url.startswith("http://"):
                 url = "http://" + url
         else:
-            qtw.QMessageBox.critical(self, 'Fail', 'No URL Entered')
+            # If no URL entered, show a popup message and return
+            qtw.QMessageBox.critical(self, 'Error', 'No URL Entered')
             return
         if cookie:
             session.headers['Cookie'] = cookie
+        if not main.valid_url(url, session):
+            # TODO make GUI warnings
+            return
 
-        # if not valid_url(url):
-        #     return
+        self.scanButton.setText("Stop")
 
-        # if args['--crawl']:
+        # if args['--crawl']: TODO
         #     crawl(url, args)
         #     return
         if check_version:
-            versions.check(session, url)
-            output = open('logs/info.log')
-            self.textBrowser.setPlainText(output.read())    
+            # versions.check(session, url)
+            versions_thread = Thread(
+                target=versions.check, args=(session, url))
+            versions_thread.start()
         if check_data:
-            data.check(session, url)
-            output = open('logs/info.log')
-            self.textBrowser.setPlainText(output.read()) 
+            # data.check(session, url)
+            data_thread = Thread(target=data.check, args=(session, url))
+            data_thread.start()
         if check_sqli:
-            sqli.check(session, url)
-            output = open('logs/info.log')
-            self.textBrowser.setPlainText(output.read())    
+            # sqli.check(session, url)
+            sqli_thread = Thread(target=sqli.check, args=(session, url))
+            sqli_thread.start()
+
+            
             # if not args['--no-time-based']:
             #     sqli.time_based(session, url)
         if check_xss:
             # dom = not args['--no-dom']
             # cookie = args['--cookie']
-            xss.check(session, url, True, cookie)
-            output = open('logs/info.log')
-            self.textBrowser.setPlainText(output.read())     
+
+            xss_thread = Thread(target=xss.check, args=(session, url, True, cookie))
+            xss_thread.start()
+
+            print(type(xss_thread.is_alive()))
+            # xss.check(session, url, True, cookie)
         if check_ci:
-            vulnerable = command_injection.check(session, url)
-            output = open('logs/info.log')
-            self.textBrowser.setPlainText(output.read())   
-            if not vulnerable:
-                command_injection.time_based(session, url)
-                output = open('logs/info.log')
-                self.textBrowser.setPlainText(output.read()) 
+            # vulnerable = command_injection.check(session, url)
+            ci_thread = Thread(target=command_injection.check, args=(session, url))
+            ci_thread.start()
+            ci_thread.join()
 
-        # output = open('logs/test.log')
-        output = open('logs/info.log')
-        self.textBrowser.setPlainText(output.read())
-        self.show_popup()
-        output.close()
-        open('logs/info.log', 'w').close()
+            # if not vulnerable:
+            #     command_injection.time_based(session, url)
 
-
+        # time.sleep(2)
+        # self.scanButton.setText("Scan")
+        # while True:
+        #     if not ci_thread.is_alive:
+        #         self.show_popup()
+        # output.close()
 
     def show_popup(self):
         msg = qtw.QMessageBox()
@@ -92,20 +122,29 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         msg.setStandardButtons(qtw.QMessageBox.Ok)
         msg.exec_()
 
+    def show_log(self):
+        self.textBrowser.setPlainText(open('logs/info.log').read())
+
+
+class Worker(qtc.QObject):
+
+    log_signal = qtc.pyqtSignal()
+
+    @qtc.pyqtSlot()
+    def run(self):
+        while True:
+            self.log_signal.emit()
+            time.sleep(1)
+
 
 def run():
     app = qtw.QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
-    # import sys
-    # app = QtWidgets.QApplication(sys.argv)
-    # MainWindow = QtWidgets.QMainWindow()
-    # ui = Ui_MainWindow()
-    # ui.setupUi(MainWindow)
-    # MainWindow.show()
-    # sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
+    import logformatter
+    logformatter.start_logging(console_file="logs/info.log")
     run()
