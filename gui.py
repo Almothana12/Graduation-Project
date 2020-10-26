@@ -72,19 +72,23 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # if args['--crawl']: TODO
         #     crawl(url, args)
         #     return
+        threads = []
         if check_version:
             # versions.check(session, url)
             versions_thread = Thread(
                 target=versions.check, args=(session, url))
             versions_thread.start()
+            threads.append(versions_thread)
         if check_data:
             # data.check(session, url)
             data_thread = Thread(target=data.check, args=(session, url))
             data_thread.start()
+            threads.append(data_thread)
         if check_sqli:
             # sqli.check(session, url)
             sqli_thread = Thread(target=sqli.check, args=(session, url))
             sqli_thread.start()
+            threads.append(sqli_thread)
 
             
             # if not args['--no-time-based']:
@@ -95,6 +99,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
 
             xss_thread = Thread(target=xss.check, args=(session, url, True, cookie))
             xss_thread.start()
+            threads.append(xss_thread)
 
             print(type(xss_thread.is_alive()))
             # xss.check(session, url, True, cookie)
@@ -102,16 +107,20 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             # vulnerable = command_injection.check(session, url)
             ci_thread = Thread(target=command_injection.check, args=(session, url))
             ci_thread.start()
-            ci_thread.join()
+            threads.append(ci_thread)
 
             # if not vulnerable:
             #     command_injection.time_based(session, url)
 
         # time.sleep(2)
         # self.scanButton.setText("Scan")
-        # while True:
-        #     if not ci_thread.is_alive:
-        #         self.show_popup()
+        while True:
+            for t in threads:
+                if t.is_alive():
+                    continue
+            self.scanButton.setText("Scan")
+            self.show_popup()
+            break
         # output.close()
 
     def show_popup(self):
