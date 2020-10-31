@@ -103,6 +103,8 @@ def main():
         if not vulnerable:
             command_injection.time_based(session, url)
 
+    session.close()
+
 
 def crawl(url, args):
     urls = get_all_links(session, url)
@@ -139,6 +141,8 @@ def crawl(url, args):
 
             command_injection.check(session, url)
             command_injection.time_based(session, url)
+        
+        session.close()
 
 
 def valid_url(url, session):
