@@ -30,17 +30,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
         self.scanButton.clicked.connect(self.scan)
-        # Create a worker object and a thread
-        self.worker = Worker()
-        self.worker_thread = qtc.QThread()
-        self.worker.log_signal.connect(self.show_log)
-        self.start_log.connect(self.worker.run)
 
-        # Assign the worker to the thread and start the thread
-        self.worker.moveToThread(self.worker_thread)
-        self.worker_thread.start()
-
-        self.start_log.emit()
+        self.timer = qtc.QTimer(self)
+        self.timer.timeout.connect(self.update_log)
+        self.timer.start(300)
 
     def scan(self):
         open('logs/info.log', 'w').close()
@@ -74,54 +67,45 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         #     return
         threads = []
         if check_version:
-            # versions.check(session, url)
             versions_thread = Thread(
                 target=versions.check, args=(session, url))
             versions_thread.start()
             threads.append(versions_thread)
         if check_data:
-            # data.check(session, url)
             data_thread = Thread(target=data.check, args=(session, url))
             data_thread.start()
             threads.append(data_thread)
         if check_sqli:
-            # sqli.check(session, url)
             sqli_thread = Thread(target=sqli.check, args=(session, url))
             sqli_thread.start()
             threads.append(sqli_thread)
-
-            
             # if not args['--no-time-based']:
             #     sqli.time_based(session, url)
         if check_xss:
             # dom = not args['--no-dom']
             # cookie = args['--cookie']
-
-            xss_thread = Thread(target=xss.check, args=(session, url, True, cookie))
+            xss_thread = Thread(target=xss.check, args=(
+                session, url, True, cookie))
             xss_thread.start()
             threads.append(xss_thread)
-
-            print(type(xss_thread.is_alive()))
-            # xss.check(session, url, True, cookie)
         if check_ci:
             # vulnerable = command_injection.check(session, url)
-            ci_thread = Thread(target=command_injection.check, args=(session, url))
+            ci_thread = Thread(
+                target=command_injection.check, args=(session, url))
             ci_thread.start()
             threads.append(ci_thread)
-
-            # if not vulnerable:
+            # if not vulnerable: TODO
             #     command_injection.time_based(session, url)
 
-        # time.sleep(2)
-        # self.scanButton.setText("Scan")
         while True:
             for t in threads:
                 if t.is_alive():
                     continue
+            # All threads are not alive, show popup
+            session.close()
             self.scanButton.setText("Scan")
             self.show_popup()
             break
-        # output.close()
 
     def show_popup(self):
         msg = qtw.QMessageBox()
@@ -131,19 +115,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         msg.setStandardButtons(qtw.QMessageBox.Ok)
         msg.exec_()
 
-    def show_log(self):
+    def update_log(self):
+        """Updates the text browser with the contents of the log file. Runs every 300ms"""         
         self.textBrowser.setPlainText(open('logs/info.log').read())
 
-
-class Worker(qtc.QObject):
-
-    log_signal = qtc.pyqtSignal()
-
-    @qtc.pyqtSlot()
-    def run(self):
-        while True:
-            self.log_signal.emit()
-            time.sleep(1)
 
 
 def run():
