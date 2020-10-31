@@ -118,41 +118,14 @@ def setup_logging(console_log_output, console_log_level, console_log_color, cons
 # https://stackoverflow.com/a/36760881/1976617
 # https://docs.microsoft.com/en-us/windows/console/setconsolemode
 def windows_enable_ansi_terminal():
-    if (sys.platform == "win32"):
-        try:
-            import ctypes
-            kernel32 = ctypes.windll.kernel32
-            result = kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-            if (result == 0): raise Exception
-            return True
-        except:
-            return False
-    return None
+    import ctypes
+    kernel32 = ctypes.windll.kernel32
+    result = kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
+    if (result == 0): raise Exception
 
-# Main function
-# def main():
-
-#     # Setup logging
-#     script_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-#     if (not setup_logging(console_log_output="stdout", console_log_level="warning", console_log_color=True,
-#                         logfile_file=script_name + ".log", logfile_log_level="debug", logfile_log_color=False,
-#                         log_line_template="%(color_on)s[%(created)d] [%(threadName)s] [%(levelname)-8s] %(message)s%(color_off)s")):
-#         print("Failed to setup logging, aborting.")
-#         return 1
-
-#     # Log some messages
-#     logging.debug("Debug message")
-#     logging.info("Info message")
-#     logging.warning("Warning message")
-#     logging.error("Error message")
-#     logging.critical("Critical message")
-
-# # Call main function
-# if (__name__ == "__main__"):
-#     sys.exit(main())
 
 def start_logging(console_file="stdout", console_color="True"):
-    windows_enable_ansi_terminal()
+
     setup_logging(
         console_log_output=console_file,
         console_log_level="INFO", 
@@ -164,6 +137,12 @@ def start_logging(console_file="stdout", console_color="True"):
         logfile_log_color=False,
         logfile_format="%(color_on)s[%(created)d] [%(levelname)s] %(message)s%(color_off)s"
     )
+    if (sys.platform == "win32"):
+        try:
+            windows_enable_ansi_terminal()
+        except:
+            logging.debug("couldn't enable windows ansi terminal")
+            
 
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 logging.getLogger("selenium").setLevel(logging.WARNING)
