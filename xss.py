@@ -28,7 +28,10 @@ def check_dom(url: str, str_cookie=None):
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")  # linux only
     options.add_argument("--headless")
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    try:
+        options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    except:
+        pass
     # webdriver.firefox.options.headless = True
     # fireFoxOptions.set_headless()
     browser = webdriver.Chrome(options=options)
@@ -55,7 +58,7 @@ def check_dom(url: str, str_cookie=None):
         return False
 
 
-def check(session: requests.Session, url: str, dom=True, cookie=None) -> bool:
+def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None) -> bool:
     """Check `url` for XSS vulnerability
 
     Args:
@@ -87,6 +90,8 @@ def check(session: requests.Session, url: str, dom=True, cookie=None) -> bool:
             log.info(f"payload used: {dom_payload}")
             if form_details['name']:
                 log.info(f"Form name: {form_details['name']}")
+            if sig:
+                sig.finished.emit()
             return True
     # if no DOM XSS detected, check for reflected:
     for form in forms:
@@ -96,7 +101,7 @@ def check(session: requests.Session, url: str, dom=True, cookie=None) -> bool:
                 if payload.startswith('#'):  # Ignore comment
                     continue
                 payload = payload.replace("\n", "")  # remove newline char
-                # print(f"Testing:{payload}")
+                # print(f"Testing:{url}")
                 response = HTMLParser.submit_form(form_details, url, payload, session)
                 if not response:
                     continue
@@ -107,6 +112,8 @@ def check(session: requests.Session, url: str, dom=True, cookie=None) -> bool:
                         log.info(f"Form name: {form_details['name']}")
                     vulnerable = True
                     break
+    if sig:
+        sig.finished.emit()
     return vulnerable
 
 

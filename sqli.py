@@ -9,7 +9,7 @@ import logformatter
 
 log = logging.getLogger(__name__)
 
-def is_vulnerable(response: requests.Response) -> bool:
+def is_vulnerable(response: requests.Response, errors) -> bool:
     """Check if the content of the `response` has an SQL error or not
 
     Args:
@@ -18,12 +18,11 @@ def is_vulnerable(response: requests.Response) -> bool:
     Returns:
         bool: True if an error is found in the content of `response`, False otherwise
     """
-    with open("payloads/SQLIErrors") as SQLIErrors:
-        for error in SQLIErrors:
-            error = error.replace("\n", "")
-            if error.lower() in response.text.lower():
-                # If an error is found in the HTML page
-                return True
+    for error in errors:
+        error = error.replace("\n", "")
+        if error.lower() in response.text.lower():
+            # If an error is found in the HTML page
+            return True
     return False
 
 
@@ -41,10 +40,10 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
     t1 = session.get(url).elapsed.total_seconds()
     t2 = session.get(url).elapsed.total_seconds()
     t3 = session.get(url).elapsed.total_seconds()
-    avg = (t1 + t2 + t3) / 3
-    expected = time + avg
-    error = expected * 0.2
-    log.debug("sqli.time_based: avg=%s, error=%s, expected=%s", avg, error, expected)
+    average_time = (t1 + t2 + t3) / 3
+    expected_time = time + average_time
+    error_time = expected_time * 0.2
+    log.debug("sqli.time_based: avg=%s, error=%s, expected=%s", average_time, error_time, expected_time)
     vulnerable = False
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
@@ -55,18 +54,17 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
                 log.debug("sqli.time_based: Testing: %s", payload)
                 response = HTMLParser.submit_form(form_details, url, payload, session)
                 if not response:
-                    log.debug(response)
                     continue
-                elapsed = response.elapsed.total_seconds()
-                log.debug(f"sqli.time_based: elapsed={elapsed}")
-                if expected - error <= elapsed:
+                elapsed_time = response.elapsed.total_seconds()
+                log.debug(f"sqli.time_based: elapsed={elapsed_time}")
+                if expected_time - error_time <= elapsed_time <= expected_time + error_time:
                     log.warning(f"Time-based SQLi Detected on {response.url}")
                     log.info(f"Payload: {payload}")
                     vulnerable = True
     return vulnerable
 
 
-def check(session: requests.Session, url: str,) -> bool:
+def check(session: requests.Session, url: str, sig=None) -> bool:
     """Check for SQLi vulnerability on `url`
 
     Args:
@@ -77,28 +75,34 @@ def check(session: requests.Session, url: str,) -> bool:
     Returns:
         bool: True if SQLi detected, False otherwise
     """
+    payloads = open("payloads/SQLPayloads")
+    errors = open("payloads/SQLIErrors")
+
     vulnerable = False
     forms = HTMLParser.get_all_forms(session, url)
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
-        with open("payloads/SQLPayloads") as payloads:
-            for payload in payloads:
-                if payload.startswith('#'):  # Comment
-                    continue
-                payload = payload.replace("\n", "")  # remove newline char
-                # print(f"Testing: {payload}")
-                response = HTMLParser.submit_form(form_details, url, payload, session)
-                if not response:
-                    continue
-                if is_vulnerable(response):
-                    log.warning(f"SQLi Detected on {response.url}")
-                    try:
-                        log.info(f"Form name: {form['name']}")
-                    except KeyError:
-                        pass
-                    log.info(f"Payload: {payload}")
-                    vulnerable = True
-                    break
+        for payload in payloads:
+            if payload.startswith('#'):  # Comment
+                continue
+            payload = payload.replace("\n", "")  # remove newline char
+            # print(f"Testing: {url}")
+            response = HTMLParser.submit_form(form_details, url, payload, session)
+            if not response:
+                continue
+            if is_vulnerable(response, errors):
+                log.warning(f"SQLi Detected on {response.url}")
+                try:
+                    log.info(f"Form name: {form['name']}")
+                except KeyError:
+                    pass
+                log.info(f"Payload: {payload}")
+                vulnerable = True
+                break
+    payloads.close()
+    errors.close()
+    if sig:
+        sig.finished.emit()
     return vulnerable
 
 

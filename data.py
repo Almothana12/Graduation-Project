@@ -7,7 +7,7 @@ import logformatter
 
 log = logging.getLogger(__name__)
 
-def check(session: requests.Session, url: str) -> None:
+def check(session: requests.Session, url: str, sig=None) -> None:
     page = session.get(url).text
 
     # match a string of 10 numbers
@@ -22,6 +22,9 @@ def check(session: requests.Session, url: str) -> None:
     iterator = re.finditer(email_regex, page)
     for match in iterator:
         log.warning(f"email found: {match.group()} on {url}")
+    
+    if sig:
+        sig.finished.emit()
 
 if __name__ == "__main__":
     url = "http://dvwa-win10/"

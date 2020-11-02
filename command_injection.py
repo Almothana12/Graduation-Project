@@ -62,12 +62,13 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
     return False
 
 
-def check(session: requests.Session, url: str) -> bool:
+def check(session, url, sig=None) -> bool:
     """Check for Command Injection vulnerability
 
     Args:
         session (requests.Session): A Session object
         url (str): The URL of the page
+        sig (str): TODO
 
     Returns:
         bool: True if Command Injection detected, False otherwise
@@ -90,6 +91,8 @@ def check(session: requests.Session, url: str) -> bool:
                     log.info(f"Payload: {payload}")
                     vulnerable = True
                     break
+    if sig:
+        sig.finished.emit()
     return vulnerable
 
 

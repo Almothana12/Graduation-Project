@@ -17,7 +17,10 @@ from crawler import get_all_links
 from ui_form import Ui_MainWindow
 
 session = requests.Session()
-session.headers['Cookie'] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
+
+
+class ThreadSignal(qtc.QObject):
+    finished = qtc.pyqtSignal()
 
 
 class QTextEditLogger(logging.Handler, qtc.QObject):
@@ -44,25 +47,42 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.scanButton.clicked.connect(self.scan)
 
+        # Enable log messages in terminal
+        logging.basicConfig(
+            level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
+
+        # Initialize the log box
         self.logTextBox = QTextEditLogger(self)
-        # You can format what is printed to text box
+        # Set the log format of the box
         self.logTextBox.setFormatter(
             logging.Formatter('[%(levelname)s] %(message)s'))
         logging.getLogger().addHandler(self.logTextBox)
-        # You can control the logging level
         logging.getLogger().setLevel(logging.INFO)
 
+        # Also write logs to WS2T.log with log level=DEBUG
         fh = logging.FileHandler('WS2T.log')
         fh.setLevel(logging.DEBUG)
+        # Set the log format of the box
         fh.setFormatter(logging.Formatter(
-            '%(asctime)s %(levelname)s %(module)s %(funcName)s %(message)s'))
+            '%(asctime)s [%(levelname)s] %(module)s %(funcName)s %(message)s'))
         logging.getLogger().addHandler(fh)
 
+        # Add the text box widget to the predefined layout
         self.logLayout.addWidget(self.logTextBox.widget)
 
+        self.urlLineEdit.setText("http://dvwa-win10")
+        self.cookieLineEdit.setText(
+            "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
+
+        self.thread_signal = ThreadSignal()
+        self.thread_count = 0
+        self.thread_signal.finished.connect(self.thread_finished)
+
     def scan(self):
+        # Clear the log text box
         self.logTextBox.widget.clear()
 
+        # Store what the user chose
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
         check_xss = self.xssCheckBox.isChecked()
@@ -73,7 +93,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         crawl = self.allPages_radioButton.isChecked()
 
         if url:
-            # if the URL doesn't start with http://, add it to the begining to the URL
+            # if the URL doesn't start with http://, add http:// to the begining to the URL
             if not url.startswith("http://"):
                 url = "http://" + url
         else:
@@ -83,7 +103,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         if cookie:
             session.headers['Cookie'] = cookie
         if not main.valid_url(url, session):
-            qtw.QMessageBox.critical(self, 'Error', 'No Valid URL')
+            qtw.QMessageBox.critical(
+                self, 'Error', f"Couldn't connect to {url} \nURL not Valid or unreachable")
             return
 
         self.scanButton.setText("Stop")
@@ -95,15 +116,20 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         threads = []
         if check_version:
             versions_thread = Thread(
-                target=versions.check, args=(session, url))
+                target=versions.check, args=(session, url, self.thread_signal))
+            self.thread_count += 1
             versions_thread.start()
             threads.append(versions_thread)
         if check_data:
-            data_thread = Thread(target=data.check, args=(session, url))
+            data_thread = Thread(
+                target=data.check, args=(session, url, self.thread_signal))
+            self.thread_count += 1
             data_thread.start()
             threads.append(data_thread)
         if check_sqli:
-            sqli_thread = Thread(target=sqli.check, args=(session, url))
+            sqli_thread = Thread(
+                target=sqli.check, args=(session, url, self.thread_signal))
+            self.thread_count += 1
             sqli_thread.start()
             threads.append(sqli_thread)
             # if not args['--no-time-based']:
@@ -112,29 +138,19 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             # dom = not args['--no-dom']
             # cookie = args['--cookie']
             xss_thread = Thread(target=xss.check, args=(
-                session, url, True, cookie))
+                session, url, True, cookie, self.thread_signal))
+            self.thread_count += 1
             xss_thread.start()
             threads.append(xss_thread)
         if check_ci:
             # vulnerable = command_injection.check(session, url)
             ci_thread = Thread(
-                target=command_injection.check, args=(session, url))
+                target=command_injection.check, args=(session, url, self.thread_signal))
+            self.thread_count += 1
             ci_thread.start()
             threads.append(ci_thread)
             # if not vulnerable: TODO
             #     command_injection.time_based(session, url)
-        # self.wait_for_threads(threads)
-        # session.close()
-        self.scanButton.setText("Scan")
-        # self.show_popup()
-
-    def show_popup(self):
-        msg = qtw.QMessageBox()
-        msg.setWindowTitle("Scan Complete")
-        msg.setText("Scan Complete")
-        msg.setIcon(qtw.QMessageBox.Information)
-        msg.setStandardButtons(qtw.QMessageBox.Ok)
-        msg.exec_()
 
     def crawl(self, url):
         cookie = self.cookieLineEdit.text()
@@ -154,11 +170,15 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         threads = []
         for url in urls:
             if check_data:
-                data_thread = Thread(target=data.check, args=(session, url))
+                data_thread = Thread(
+                    target=data.check, args=(session, url, self.thread_signal))
+                self.thread_count += 1
                 data_thread.start()
                 threads.append(data_thread)
             if check_sqli:
-                sqli_thread = Thread(target=sqli.check, args=(session, url))
+                sqli_thread = Thread(
+                    target=sqli.check, args=(session, url, self.thread_signal))
+                self.thread_count += 1
                 sqli_thread.start()
                 threads.append(sqli_thread)
                 # if not args['--no-time-based']:
@@ -167,33 +187,26 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 # dom = not args['--no-dom']
                 # cookie = args['--cookie']
                 xss_thread = Thread(target=xss.check, args=(
-                    session, url, True, cookie))
+                    session, url, True, cookie, self.thread_signal))
+                self.thread_count += 1
                 xss_thread.start()
                 threads.append(xss_thread)
             if check_ci:
                 # vulnerable = command_injection.check(session, url)
                 ci_thread = Thread(
-                    target=command_injection.check, args=(session, url))
+                    target=command_injection.check, args=(session, url, self.thread_signal))
+                self.thread_count += 1
                 ci_thread.start()
                 threads.append(ci_thread)
                 # if not vulnerable: TODO
                 #     command_injection.time_based(session, url)
 
-        # self.wait_for_threads(threads)
-        # session.close()
-        self.scanButton.setText("Scan")
-        # self.show_popup()
-
-    def wait_for_threads(self, threads):
-        while True:
-            all_done = True
-            for thread in threads:
-                if thread.is_alive():
-                    all_done = False
-                else:
-                    threads.remove(thread)
-            if all_done:
-                return
+    def thread_finished(self):
+        self.thread_count -= 1
+        if self.thread_count == 0:
+            session.close()
+            self.scanButton.setText("Scan")
+            qtw.QMessageBox.information(self, 'Scan Complete', 'Scan Complete')
 
 
 def run():

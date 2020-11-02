@@ -41,7 +41,7 @@ def get_version(name: str) -> str:
         return ""
 
 
-def check(session, url) -> None:
+def check(session, url, sig=None) -> None:
     """Search and Print the server's version
 
     Args:
@@ -68,6 +68,8 @@ def check(session, url) -> None:
 
     if not headers:
         log.debug("Could not get server version info")
+        if sig:
+            sig.finished.emit()
         return
     # Print the found versions 
     version_found = False
@@ -84,6 +86,9 @@ def check(session, url) -> None:
         log.warning("version found")  # TODO write a helpful message
     else:
         log.debug("Could not get server version info")
+
+    if sig:
+        sig.finished.emit()
 
 if __name__ == "__main__":
     session = requests.Session()
