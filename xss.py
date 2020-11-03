@@ -58,7 +58,7 @@ def check_dom(url: str, str_cookie=None):
         return False
 
 
-def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None) -> bool:
+def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None, stop=None) -> bool:
     """Check `url` for XSS vulnerability
 
     Args:
@@ -68,10 +68,14 @@ def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None) 
     Returns:
         bool: True if XSS detected, False otherwise
     """
-
+    payloads = open("payloads/XSSPayloads")
     forms = HTMLParser.get_all_forms(session, url)
     vulnerable = False
-
+    if stop:
+        if stop():
+            payloads.close()
+            sig.finished.emit()
+            return
     # Check for DOM XSS
     if dom:
         dom_payload = "<SCrIpT>window.exploitDetected=true</ScRiPt>"
@@ -96,24 +100,28 @@ def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None) 
     # if no DOM XSS detected, check for reflected:
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
-        with open("payloads/XSSPayloads") as payloads:
-            for payload in payloads:
-                if payload.startswith('#'):  # Ignore comment
-                    continue
-                payload = payload.replace("\n", "")  # remove newline char
-                # print(f"Testing:{url}")
-                response = HTMLParser.submit_form(form_details, url, payload, session)
-                if not response:
-                    continue
-                if payload.lower() in response.text.lower():
-                    log.warning(f"XSS Detected on {response.url}")
-                    log.info(f"Payload: {payload}")
-                    if form_details['name']:
-                        log.info(f"Form name: {form_details['name']}")
-                    vulnerable = True
-                    break
+        for payload in payloads:
+            if stop:
+                if stop():
+                    payloads.close()
+                    sig.finished.emit()
+                    return
+            if payload.startswith('#'):  # Ignore comment
+                continue
+            payload = payload.replace("\n", "")  # remove newline char
+            # print(f"Testing:{url}")
+            response = HTMLParser.submit_form(form_details, url, payload, session)
+            if not response:
+                continue
+            if payload.lower() in response.text.lower():
+                log.warning(f"XSS Detected on {response.url}")
+                log.info(f"Payload: {payload}")
+                if form_details['name']:
+                    log.info(f"Form name: {form_details['name']}")
+                vulnerable = True
+                break
     if sig:
-        sig.finished.emit()
+            sig.finished.emit()
     return vulnerable
 
 

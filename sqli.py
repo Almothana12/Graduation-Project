@@ -64,7 +64,7 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
     return vulnerable
 
 
-def check(session: requests.Session, url: str, sig=None) -> bool:
+def check(session: requests.Session, url: str, sig=None, stop=None) -> bool:
     """Check for SQLi vulnerability on `url`
 
     Args:
@@ -83,6 +83,12 @@ def check(session: requests.Session, url: str, sig=None) -> bool:
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
         for payload in payloads:
+            if stop:
+                if stop():
+                    payloads.close()
+                    errors.close()
+                    sig.finished.emit()
+                    return
             if payload.startswith('#'):  # Comment
                 continue
             payload = payload.replace("\n", "")  # remove newline char

@@ -41,13 +41,17 @@ def get_version(name: str) -> str:
         return ""
 
 
-def check(session, url, sig=None) -> None:
+def check(session, url, sig=None, stop=None) -> None:
     """Search and Print the server's version
 
     Args:
         session (requests.Session): A session object
         url (str): The URL of the server
     """
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return
     response = session.get(url)
     # Fill the headers list
     if 'server' in response.headers:
@@ -74,6 +78,10 @@ def check(session, url, sig=None) -> None:
     # Print the found versions 
     version_found = False
     for name, supported_version in versions.items():
+        if stop:
+            if stop():
+                sig.finished.emit()
+                return
         server_version = get_version(name)
         if server_version:
             version_found = True
@@ -83,7 +91,7 @@ def check(session, url, sig=None) -> None:
             else:
                 log.info(f"{name} version: {server_version}")
     if version_found:
-        log.warning("version found")  # TODO write a helpful message
+        log.warning("A version is found on the 'server' HTTP header. Attackers could use this information for malicious reasons")  # TODO write a more helpful message
     else:
         log.debug("Could not get server version info")
 

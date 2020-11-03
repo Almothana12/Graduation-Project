@@ -62,7 +62,7 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
     return False
 
 
-def check(session, url, sig=None) -> bool:
+def check(session, url, sig=None, stop=None) -> bool:
     """Check for Command Injection vulnerability
 
     Args:
@@ -73,24 +73,30 @@ def check(session, url, sig=None) -> bool:
     Returns:
         bool: True if Command Injection detected, False otherwise
     """
+    payloads = open("payloads/CommandInjectionPayloads")
     vulnerable = False
     forms = HTMLParser.get_all_forms(session, url)
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
-        with open("payloads/CommandInjectionPayloads") as payloads:
-            for payload in payloads:
-                if payload.startswith('#'):  # Comment
-                    continue
-                payload = payload.replace("\n", "")  # remove newline char
-                log.debug(f"ci: Testing: {payload}")
-                response = HTMLParser.submit_form(form_details, url, payload, session)
-                if not response:
-                    continue
-                if is_vulnerable(response):
-                    log.warning(f"Command Injection found on {response.url}")
-                    log.info(f"Payload: {payload}")
-                    vulnerable = True
-                    break
+        if stop:
+            if stop():
+                payloads.close()
+                sig.finished.emit()
+                return
+        for payload in payloads:
+            if payload.startswith('#'):  # Ignore comment
+                continue
+            payload = payload.replace("\n", "")  # remove newline char
+            # log.debug(f"ci: Testing: {payload}")
+            response = HTMLParser.submit_form(form_details, url, payload, session)
+            if not response:
+                continue
+            if is_vulnerable(response):
+                log.warning(f"Command Injection found on {response.url}")
+                log.info(f"Payload: {payload}")
+                vulnerable = True
+                break
+    payloads.close()
     if sig:
         sig.finished.emit()
     return vulnerable

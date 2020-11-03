@@ -7,7 +7,12 @@ import logformatter
 
 log = logging.getLogger(__name__)
 
-def check(session: requests.Session, url: str, sig=None) -> None:
+def check(session: requests.Session, url: str, sig=None, stop=None) -> None:
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return
+        
     page = session.get(url).text
 
     # match a string of 10 numbers
@@ -16,6 +21,11 @@ def check(session: requests.Session, url: str, sig=None) -> None:
     iterator = re.finditer(phone_regex, page) # find all
     for match in iterator: # loop through the matches
         log.warning(f"phone number found: {match.group()} on {url}")
+
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return
 
     # match an Email address:
     email_regex = r"[a-zA-Z0-9\._\-\+]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9]+)+"
