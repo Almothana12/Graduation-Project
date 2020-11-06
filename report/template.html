@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+  <head lang="en">
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+
+    <link rel="stylesheet" href="css/bootstrap.css" />
+
+    <title>WS2T Report</title>
+  </head>
+
+  <body>
+    {% for page in pages %}
+    <div class="container">
+      <h3>{{page.url}}:</h3>
+      <h5>SQL Injection:</h5>
+      {% if page.sqli %}
+      <div class="alert alert-danger" role="alert">
+        SQL Injection Detected on this page.
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th scope="col">Form Name</th>
+            <th scope="col">Vulnerability</th>
+            <th scope="col">Payload Used</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vulnerability in page.sqli %}
+          <tr>
+            <td>{{vulnerability["form"]}}</td>
+            <td>{{vulnerability["vulnerability"]}}</td>
+            <td>{{vulnerability["payload"]}}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success" role="alert">
+      No SQL Injection Detected.
+    </div>
+  </div>
+    {% endif %} 
+    
+    <div class="container">
+      <h5>Cross-Site Scripting Injection:</h5>
+      {% if page.xss %}
+      <div class="alert alert-danger" role="alert">
+        Cross-Site Scripting Detected on this page.
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th scope="col">Form Name</th>
+            <th scope="col">Vulnerability</th>
+            <th scope="col">Payload Used</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vulnerability in page.xss %}
+          <tr>
+            <td>{{vulnerability["form"]}}</td>
+            <td>{{vulnerability["vulnerability"]}}</td>
+            <td>{{vulnerability["payload"]}}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success" role="alert">
+      No Cross-Site Scripting Detected on this page.
+    </div>
+  </div>
+    {% endif %} 
+
+    <div class="container">
+      <h5>Command Injection:</h5>
+      {% if page.ci %}
+      <div class="alert alert-danger" role="alert">
+        Command Injection Detected on this page.
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th scope="col">Form Name</th>
+            <th scope="col">Vulnerability</th>
+            <th scope="col">Payload Used</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vulnerability in page.ci %}
+          <tr>
+            <td>{{vulnerability["form"]}}</td>
+            <td>{{vulnerability["vulnerability"]}}</td>
+            <td>{{vulnerability["payload"]}}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-success" role="alert">
+      No Command Injection vulnerability Detected on this page.
+    </div>
+  </div>
+    {% endif %} 
+
+    <div class="container">
+      <h5>Exposure of Sensitive Data:</h5>
+      {% if page.data %}
+      <div class="alert alert-danger" role="alert">
+        Potential Exposure of Sensitive Data Detected on this page
+      </div>
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th scope="col">Form Name</th>
+            <th scope="col">Vulnerability</th>
+            <th scope="col">Payload Used</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vulnerability in page.data %}
+          <tr>
+            <td>{{vulnerability["form"]}}</td>
+            <td>{{vulnerability["vulnerability"]}}</td>
+            <td>{{vulnerability["payload"]}}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <hr>
+    </div>
+    {% else %}
+    <div class="alert alert-success" role="alert">
+      No Sensitive Data Detected on this page.
+    </div>
+    <hr>
+  </div>
+    {% endif %}
+    {% endfor %}
+  </body>
+</html>
