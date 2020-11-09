@@ -25,7 +25,7 @@ import logging
 class LogFormatter(logging.Formatter):
 
     COLOR_CODES = {
-        logging.CRITICAL: "\033[1;35m", # bright/bold magenta
+        logging.CRITICAL: "\033[1;31m", # bright/bold red
         logging.ERROR:    "\033[1;31m", # bright/bold red
         logging.WARNING:  "\033[1;33m", # bright/bold yellow
         logging.INFO:     "\033[0;37m", # white / light gray
@@ -69,8 +69,6 @@ def setup_logging(console_log_output, console_log_level, console_log_color, cons
         console_log_output = sys.stderr
         console_handler = logging.StreamHandler(console_log_output)
     else:
-        # print("Failed to set console output: invalid output: '%s'" % console_log_output)
-        # return False
         try:
             console_handler = logging.FileHandler(console_log_output, mode=logfile_mode)
         except Exception as exception:
@@ -124,14 +122,14 @@ def windows_enable_ansi_terminal():
     if (result == 0): raise Exception
 
 
-def start_logging(console_file="stdout", console_color="True"):
+def start_logging(console_file="stdout", console_color=True):
 
     setup_logging(
         console_log_output=console_file,
         console_log_level="INFO", 
         console_log_color=console_color,
         console_format="%(color_on)s[%(levelname)s] %(message)s%(color_off)s",
-        logfile_file="logs/main.log",
+        logfile_file="WS2T.log",
         logfile_mode="w",
         logfile_log_level="DEBUG",
         logfile_log_color=False,
@@ -141,7 +139,7 @@ def start_logging(console_file="stdout", console_color="True"):
         try:
             windows_enable_ansi_terminal()
         except:
-            logging.debug("couldn't enable windows ansi terminal")
+            logging.debug("Could not enable Windows ANSI terminal")
             
 
 logging.getLogger("urllib3").setLevel(logging.WARNING)
