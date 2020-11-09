@@ -55,19 +55,29 @@ def get_links(session, url):
 
 
 def crawl(session, url):
-    """
-    Crawls a web page and extracts all links.
-    You'll find all links in `external_urls` and `internal_urls` global set variables.
-    params:
-        max_urls (int): number of max urls to crawl, default is 30.
-    """
+    """Crawls a web page and extracts all links. 
+    The links will be stored in the `all_urls` set
 
+    Args:
+        session (requests.Session): A session object.
+        url (str): The url to crawl from.
+    """
     links = get_links(session, url)
     for link in links:
         crawl(session, link)
 
 
 def get_all_links(session, url):
+    """Get the links of all pages in a website.
+
+    Args:
+        session (requests.Session): A session object.
+        url (str): A URL of a website.
+
+    Returns:
+        List: A list containing the URLs of all the pages in the website. 
+        This will only contain internal URLs.
+    """
     crawl(session, url)
     return all_urls
 

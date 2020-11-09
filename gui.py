@@ -7,18 +7,19 @@ from PyQt5 import QtCore as qtc
 from PyQt5 import QtWidgets as qtw
 
 import command_injection
-import report_generator
 import data
-import main
+import report_generator
 import sqli
 import versions
 import xss
 from crawler import get_all_links
+from main import valid_url
 from ui_form import Ui_MainWindow
 
 session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
 session.mount("http://", adapter)
+
 
 class ThreadSignal(qtc.QObject):
     finished = qtc.pyqtSignal()
@@ -82,6 +83,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
 
     def scan(self):
         if self.scanButton.text() == "Stop" or self.scanButton.text() == "Stopping...":
+            # Abort scanning. Stop the threads
             self.scanButton.setText("Stopping...")
             self.stop_threads = True
             self.progressBar.setMaximum(0)
@@ -90,12 +92,14 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Clear the log text box
         self.logTextBox.widget.clear()
 
-        self.threads = []
-        self.alive_thread_count = 0
+        # The total number of threads
         self.max_thread_count = 0
+        # The number of alive threds
+        self.alive_thread_count = 0
+
         self.stop_threads = False
 
-        # get what the user choose
+        # get what the user chose
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
         check_xss = self.xssCheckBox.isChecked()
@@ -103,8 +107,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         check_ci = self.ciCheckBox.isChecked()
         check_version = self.versionCheckBox.isChecked()
         check_data = self.dataCheckBox.isChecked()
-        check_time_based = False
-        check_dom_based = False
+        check_time_based = False  # TODO
+        check_dom_based = False  # TODO
         crawl = self.allPages_radioButton.isChecked()
 
         if url:
@@ -117,18 +121,23 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             return
         if cookie:
             session.headers['Cookie'] = cookie
-        if not main.valid_url(url, session):
+        if not valid_url(url, session):
             qtw.QMessageBox.critical(
                 self, 'Error', f"Could not connect to {url} \nURL not valid or unreachable")
             return
 
         self.scanButton.setText("Stop")
+        # Show the progress bar
         self.progressBar.setHidden(False)
 
+        # List containing all urls to scan
         urls = []
         if crawl:
             urls = get_all_links(session, url)
+            if len(urls) > 1:
+                logging.info(f"Scanning {len(urls)} pages")
         else:
+            # Scan only one URL
             urls.append(url)
 
         if check_version:
@@ -146,44 +155,46 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 self.alive_thread_count += 1
                 data_thread.start()
             if check_sqli:
-                sqli_thread = Thread(target=sqli.check, args=(session, url, check_time_based, self.thread_signal, lambda: self.stop_threads))
+                sqli_thread = Thread(target=sqli.check, args=(
+                    session, url, check_time_based, self.thread_signal, lambda: self.stop_threads))
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 sqli_thread.start()
-                # if not args['--no-time-based']:
-                #     sqli.time_based(session, url)
+
             if check_xss:
-                # dom = not args['--no-dom']
-                # cookie = args['--cookie']
-                xss_thread = Thread(target=xss.check, args=(session, url, check_dom_based, self.thread_signal, lambda: self.stop_threads))
+                xss_thread = Thread(target=xss.check, args=(
+                    session, url, check_dom_based, self.thread_signal, lambda: self.stop_threads))
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 xss_thread.start()
             if check_ci:
-                # vulnerable = command_injection.check(session, url)
-                ci_thread = Thread(target=command_injection.check, args=(session, url, check_time_based, self.thread_signal, lambda: self.stop_threads))
+                ci_thread = Thread(target=command_injection.check, args=(
+                    session, url, check_time_based, self.thread_signal, lambda: self.stop_threads))
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 ci_thread.start()
-                # if not vulnerable: TODO
-                #     command_injection.time_based(session, url)
 
 
     def thread_finished(self):
+        # A thread is finished
         self.alive_thread_count -= 1
         if self.alive_thread_count == 0:
+            # No threads left
             self.progressBar.setValue(100)
             session.close()
             report_generator.generate()
             if self.scanButton.text() != "Stopping...":
+                # The threads finished normally
                 qtw.QMessageBox.information(
                     self, 'Scan Complete', 'Scan Complete')
             else:
+                # The threads stopped by the user
                 self.progressBar.setMaximum(100)
                 qtw.QMessageBox.information(
                     self, 'Scan Stopped', 'Scanning Stopped successfully')
             self.scanButton.setText("Scan")
         else:
+            # Update the progress bar
             finished_threads = self.max_thread_count - self.alive_thread_count
             percentage = finished_threads / self.max_thread_count * 100
             self.progressBar.setValue(int(percentage))
