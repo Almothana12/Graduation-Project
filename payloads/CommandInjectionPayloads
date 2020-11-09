@@ -1,5 +1,5 @@
-ttt || echo TEST
-ttt && echo TEST
-123 & echo TEST
-123; echo TEST
-`echo TEST`
+ttt || echo CommandInjectionDetected
+ttt && echo CommandInjectionDetected
+123 & echo CommandInjectionDetected
+123; echo CommandInjectionDetected
+`echo CommandInjectionDetected`

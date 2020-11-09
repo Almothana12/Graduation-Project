@@ -1,4 +1,3 @@
-import HTMLParser
 import logging
 from http.cookies import SimpleCookie
 from urllib.parse import unquote_plus
@@ -8,9 +7,12 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
+import HTMLParser
 import logformatter
+from report_generator import add_vulnerability
 
 log = logging.getLogger(__name__)
+
 
 def check_dom(url: str, str_cookie=None):
     """Check `url` for DOM-Based XSS
@@ -48,7 +50,6 @@ def check_dom(url: str, str_cookie=None):
             value = cookies[key]
             browser.add_cookie({"name": key, "value": value})
     browser.get(url)
-    # print(browser.get_cookie("security"))
     exploitDetected = browser.execute_script("return window.exploitDetected")
     browser.quit()
     log.debug(f"Finished checking DOM XSS")
@@ -58,7 +59,7 @@ def check_dom(url: str, str_cookie=None):
         return False
 
 
-def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None, stop=None) -> bool:
+def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) -> bool:
     """Check `url` for XSS vulnerability
 
     Args:
@@ -81,7 +82,8 @@ def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None, 
         dom_payload = "<SCrIpT>window.exploitDetected=true</ScRiPt>"
         for form in forms:
             form_details = HTMLParser.get_form_details(form)
-            response = HTMLParser.submit_form(form_details, url, dom_payload, session)
+            response = HTMLParser.submit_form(
+                form_details, url, dom_payload, session)
             if not response:
                 continue
             dom_url = unquote_plus(response.url)
@@ -90,14 +92,18 @@ def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None, 
             except KeyError:
                 vulnerable = check_dom(dom_url, None)
         if vulnerable:
-            log.warning(f"DOM-based XSS detected on {response.url}")
+            
+            log.critical(f"DOM-based XSS detected on {response.url}")
             log.info(f"payload used: {dom_payload}")
-            if form_details['name']:
+            if 'name' in form_details:
+                add_vulnerability("DOM-XSS", url, form=form_details['name'], payload=dom_payload)
                 log.info(f"Form name: {form_details['name']}")
+            else:
+                add_vulnerability("DOM-XSS", url, form="None", payload=dom_payload)
             if sig:
                 sig.finished.emit()
             return True
-    # if no DOM XSS detected, check for reflected:
+    # if no DOM XSS detected, check for reflected or stored:
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
         for payload in payloads:
@@ -109,19 +115,23 @@ def check(session: requests.Session, url: str, dom=True, cookie=None, sig=None, 
             if payload.startswith('#'):  # Ignore comment
                 continue
             payload = payload.replace("\n", "")  # remove newline char
-            # print(f"Testing:{url}")
-            response = HTMLParser.submit_form(form_details, url, payload, session)
+            # log.debug(f"Testing:{url}")
+            response = HTMLParser.submit_form(
+                form_details, url, payload, session)
             if not response:
                 continue
             if payload.lower() in response.text.lower():
-                log.warning(f"XSS Detected on {response.url}")
+                log.critical(f"XSS Detected on {response.url}")
                 log.info(f"Payload: {payload}")
-                if form_details['name']:
+                if 'name' in form_details:
+                    add_vulnerability("XSS", url, form=form_details['name'], payload=payload)
                     log.info(f"Form name: {form_details['name']}")
+                else:
+                    add_vulnerability("XSS", url, form="None", payload=payload)
                 vulnerable = True
                 break
     if sig:
-            sig.finished.emit()
+        sig.finished.emit()
     return vulnerable
 
 
@@ -132,5 +142,4 @@ if __name__ == "__main__":
     cookie = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
     session = requests.Session()
     session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
-    session.headers["Cookie"] = cookie
-    check(session, url, cookie)
+    check(session, url)

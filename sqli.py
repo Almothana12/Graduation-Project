@@ -1,13 +1,15 @@
-import HTMLParser
 import logging
 import re
 from urllib.parse import unquote_plus, urljoin
 
 import requests
 
+import HTMLParser
 import logformatter
+from report_generator import add_vulnerability
 
 log = logging.getLogger(__name__)
+
 
 def is_vulnerable(response: requests.Response, errors) -> bool:
     """Check if the content of the `response` has an SQL error or not
@@ -43,8 +45,8 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
     average_time = (t1 + t2 + t3) / 3
     expected_time = time + average_time
     error_time = expected_time * 0.2
-    log.debug("sqli.time_based: avg=%s, error=%s, expected=%s", average_time, error_time, expected_time)
-    vulnerable = False
+    log.debug("sqli.time_based: avg=%s, error=%s, expected=%s",
+              average_time, error_time, expected_time)
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
         with open("payloads/SQLTimePayloads") as payloads:
@@ -52,19 +54,25 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
                 payload = payload.replace("\n", "")
                 payload = payload.replace("_TIME_", str(time))
                 log.debug("sqli.time_based: Testing: %s", payload)
-                response = HTMLParser.submit_form(form_details, url, payload, session)
+                response = HTMLParser.submit_form(
+                    form_details, url, payload, session)
                 if not response:
                     continue
                 elapsed_time = response.elapsed.total_seconds()
                 log.debug(f"sqli.time_based: elapsed={elapsed_time}")
                 if expected_time - error_time <= elapsed_time <= expected_time + error_time:
-                    log.warning(f"Time-based SQLi Detected on {response.url}")
+                    
+                    log.critical(f"Time-based SQLi Detected on {response.url}")
                     log.info(f"Payload: {payload}")
-                    vulnerable = True
-    return vulnerable
+                    if 'name' in form_details:
+                        add_vulnerability("TIME-SQLI", url, form=form_details['name'], payload=payload)
+                        log.info(f"Form name: {form_details['name']}")
+                    else:
+                        add_vulnerability("TIME-SQLI", url, form="None", payload=payload)
+                    return True
+                    
 
-
-def check(session: requests.Session, url: str, sig=None, stop=None) -> bool:
+def check(session: requests.Session, url: str, timed=True, sig=None, stop=None) -> bool:
     """Check for SQLi vulnerability on `url`
 
     Args:
@@ -75,10 +83,15 @@ def check(session: requests.Session, url: str, sig=None, stop=None) -> bool:
     Returns:
         bool: True if SQLi detected, False otherwise
     """
+    if timed:
+        # Use time-based method
+        if time_based(session, url):
+            return True
+
+    vulnerable = False
     payloads = open("payloads/SQLPayloads")
     errors = open("payloads/SQLIErrors")
 
-    vulnerable = False
     forms = HTMLParser.get_all_forms(session, url)
     for form in forms:
         form_details = HTMLParser.get_form_details(form)
@@ -93,16 +106,18 @@ def check(session: requests.Session, url: str, sig=None, stop=None) -> bool:
                 continue
             payload = payload.replace("\n", "")  # remove newline char
             # print(f"Testing: {url}")
-            response = HTMLParser.submit_form(form_details, url, payload, session)
+            response = HTMLParser.submit_form(
+                form_details, url, payload, session)
             if not response:
                 continue
             if is_vulnerable(response, errors):
-                log.warning(f"SQLi Detected on {response.url}")
-                try:
-                    log.info(f"Form name: {form['name']}")
-                except KeyError:
-                    pass
+                log.critical(f"SQLi Detected on {response.url}")
                 log.info(f"Payload: {payload}")
+                if 'name' in form_details:
+                    add_vulnerability("SQLI", url, form=form_details['name'], payload=payload)
+                    log.info(f"Form name: {form_details['name']}")
+                else:
+                    add_vulnerability("SQLI", url, form="None", payload=payload)
                 vulnerable = True
                 break
     payloads.close()

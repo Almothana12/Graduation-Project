@@ -16,7 +16,6 @@
     {% for page in pages %}
     <div class="container">
       <h3>{{page.url}}:</h3>
-      <h5>SQL Injection:</h5>
       {% if page.sqli %}
       <div class="alert alert-danger" role="alert">
         SQL Injection Detected on this page.
@@ -34,7 +33,7 @@
           <tr>
             <td>{{vulnerability["form"]}}</td>
             <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["payload"]}}</td>
+            <td>{{vulnerability["payload"]|e}}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -42,13 +41,12 @@
     </div>
     {% else %}
     <div class="alert alert-success" role="alert">
-      No SQL Injection Detected.
+      No SQL Injection Detected on this page.
     </div>
   </div>
     {% endif %} 
     
     <div class="container">
-      <h5>Cross-Site Scripting Injection:</h5>
       {% if page.xss %}
       <div class="alert alert-danger" role="alert">
         Cross-Site Scripting Detected on this page.
@@ -66,7 +64,7 @@
           <tr>
             <td>{{vulnerability["form"]}}</td>
             <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["payload"]}}</td>
+            <td>{{vulnerability["payload"]|e}}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -80,7 +78,6 @@
     {% endif %} 
 
     <div class="container">
-      <h5>Command Injection:</h5>
       {% if page.ci %}
       <div class="alert alert-danger" role="alert">
         Command Injection Detected on this page.
@@ -98,7 +95,7 @@
           <tr>
             <td>{{vulnerability["form"]}}</td>
             <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["payload"]}}</td>
+            <td>{{vulnerability["payload"]|e}}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -112,25 +109,22 @@
     {% endif %} 
 
     <div class="container">
-      <h5>Exposure of Sensitive Data:</h5>
       {% if page.data %}
-      <div class="alert alert-danger" role="alert">
+      <div class="alert alert-warning" role="alert">
         Potential Exposure of Sensitive Data Detected on this page
       </div>
       <table class="table table-hover">
         <thead>
           <tr>
-            <th scope="col">Form Name</th>
-            <th scope="col">Vulnerability</th>
-            <th scope="col">Payload Used</th>
+            <th scope="col">Data Type</th>
+            <th scope="col">Data</th>
           </tr>
         </thead>
         <tbody>
           {% for vulnerability in page.data %}
           <tr>
-            <td>{{vulnerability["form"]}}</td>
             <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["payload"]}}</td>
+            <td>{{vulnerability["data"]}}</td>
           </tr>
           {% endfor %}
         </tbody>

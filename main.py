@@ -1,5 +1,4 @@
-usage = """
-Scan a website for common web vulnerabilites
+"""Scan a website for common web vulnerabilites
 
 Usage:
     main.py
@@ -7,15 +6,16 @@ Usage:
     main.py (-h | --help)
     main.py (-v | --version)
 Options:
-    -c, --cookie=<cookie>          Send a Cookie with the requests
+    -c, --cookie=<cookie>          Send this Cookie with the requests
     -C, --command-injection        Check for command injection
         --crawl                    Check for all URLs
     -D, --data                     Check for sensitve data
-        --gui                      Start a graphical interface
+        --gui                      Start the graphical interface
     -h, --help                     Show this screen
         --no-dom                   Don't check for DOM-based XSS
-    -S, --sqli                     Check for SQLi
         --no-time-based            Don't Check using time-based method.
+    -S, --sqli                     Check for SQLi
+        --time=<seconds>           The seconds to inject in time-based TODO
     -v, --version                  Show the version
     -V, --versions                 Check for the server version
     -X, --xss                      Check for XSS
@@ -25,6 +25,7 @@ import sys
 import requests
 
 import command_injection
+import report_generator
 import data
 import logformatter
 import sqli
@@ -36,20 +37,19 @@ import gui
 
 session = requests.Session()
 # session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
-session.headers['Cookie'] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
+session.headers['Cookie'] = "PHPSESSID=ctgd2jigvorbntt2hfm4o7sltm; security=low"
 
 
 def main():
-    args = docopt(usage)
+    args = docopt(__doc__)
 
     if args['--gui'] or all(not x for x in args.values()):
-        logformatter.start_logging(console_file="logs/info.log")
-        print("Launching GUI...")  # TODO GUI
+        print("Launching GUI...")
         gui.run()
         return
-    else:
-        logformatter.start_logging(console_file="stdout")
-
+    print(args)
+    logformatter.start_logging()
+    url = ""
     if args['<url>']:
         if not args['<url>'].startswith("http"):
             url = "http://" + args['<url>']
@@ -64,96 +64,92 @@ def main():
     if args['--crawl']:
         crawl(url, args)
         return
-    d = False
+    checked = False
     if args['--versions']:
         versions.check(session, url)
-        d = True
+        checked = True
     if args['--data']:
         data.check(session, url)
-        d = True
+        checked = True
     if args['--sqli']:
-        vulnerable = sqli.check(session, url)
-        if not args['--no-time-based'] and not vulnerable:
-            sqli.time_based(session, url)
-        d = True
+        check_time_based = not args['--no-time-based']
+        sqli.check(session, url, check_time_based)
+        checked = True
     if args['--xss']:
-        dom = not args['--no-dom']
-        cookie = args['--cookie']
-        xss.check(session, url, dom, cookie)
-        d = True
+        check_dom = not args['--no-dom']
+        xss.check(session, url, check_dom)
+        checked = True
     if args['--command-injection']:
-        vulnerable = command_injection.check(session, url)
-        if not vulnerable:
-            command_injection.time_based(session, url)
-        d = True
+        check_time_based = not args['--no-time-based']
+        command_injection.check(session, url, check_time_based)
+        checked = True
     # If user didn't specify a vlunerability, check for all vulnerabilities
-    if not d:
+    if not checked:
         # Check for all vulnerabilities
         versions.check(session, url)
 
         data.check(session, url)
 
-        sqli.check(session, url)
+        check_time_based = not args['--no-time-based']
+        sqli.check(session, url, check_time_based)
 
-        dom = not args['--no-dom']
-        cookie = args['--cookie']
-        xss.check(session, url, dom, cookie)
+        check_dom = not args['--no-dom']
+        xss.check(session, url, check_dom)
 
-        vulnerable = command_injection.check(session, url)
-        if not vulnerable:
-            command_injection.time_based(session, url)
-
+        command_injection.check(session, url, check_time_based)
+    
+    report_generator.generate()
     session.close()
 
 
 def crawl(url, args):
     urls = get_all_links(session, url)
-    d = False
+    checked = False
     if args['--versions']:
         versions.check(session, url)
-        d = True
+        checked = True
     for url in urls:
         if args['--data']:
             data.check(session, url)
-            d = True
+            checked = True
         if args['--sqli']:
-            sqli.check(session, url)
-            d = True
+            check_time_based = not args['--no-time-based']
+            sqli.check(session, url, check_time_based)
+            checked = True
         if args['--xss']:
-            dom = not args['--no-dom']
-            cookie = args['--cookie']
-            xss.check(session, url, dom, cookie)
-            d = True
+            check_dom = not args['--no-dom']
+            xss.check(session, url, check_dom)
+            checked = True
         if args['--command-injection']:
-            command_injection.check(session, url)
-            command_injection.time_based(session, url)
-            d = True
+            check_time_based = not args['--no-time-based']
+            command_injection.check(session, url, check_time_based)
+            checked = True
         # If user didn't specify a vlunerability, check for all vulnerabilities
-        if not d:
+        if not checked:
             data.check(session, url)
 
-            # sqli.check(session, url)
-            sqli.time_based(session, url)
+            check_time_based = not args['--no-time-based']
+            sqli.check(session, url, check_time_based)
 
-            dom = not args['--no-dom']
-            cookie = args['--cookie']
-            xss.check(session, url, dom, cookie)
+            check_dom = not args['--no-dom']
+            xss.check(session, url, check_dom)
 
-            command_injection.check(session, url)
-            command_injection.time_based(session, url)
+            command_injection.check(session, url, check_time_based)
         
-        session.close()
+    report_generator.generate()
+    session.close()
 
 
 def valid_url(url, session):
-    """Check if the `url` is valid and reachable
+    """Check if `url` is valid and reachable
 
     Args:
         url (str): The url to check
 
     Returns:
-        bool: True if the `url` is valid
+        bool: True if `url` is valid and reachable
     """
+    # TODO return error codes 
     try:
         response = session.get(url)
         if response.history:

@@ -3,11 +3,11 @@ import logging
 from jinja2 import Environment, FileSystemLoader
 
 
+log = logging.getLogger(__name__)
 pages = []
 
 
 class Page:
-
 
     def __init__(self, url, dict):
         self.sqli = []
@@ -18,29 +18,18 @@ class Page:
         self.append(dict)
 
     def append(self, dict):
-        if dict["vulnerability"] == "SQLI":
+        vuln = dict["vulnerability"]
+        if "SQLI" in vuln:
             self.sqli.append(dict)
-        elif dict["vulnerability"] == "XSS":
+        elif "XSS" in vuln:
             self.xss.append(dict)
-        elif dict["vulnerability"] == "CI":
+        elif "CI" in vuln:
             self.ci.append(dict)
-        elif dict["vulnerability"] == "DATA":
+        elif "Phone" in vuln or "Email" in vuln:
             self.data.append(dict)
         else:
             logging.debug(f'Unkonw vulnerability: {dict["vulnerability"]}')
 
-
-# def add_vulnerability(vulnerability, url, form, payload):
-#     dict = {"form": form, "payload": payload, "vulnerability": vulnerability}
-
-#     url_exist = False
-#     for page in pages:
-#         if page.url == url:
-#             url_exist = True
-#             page.append(dict)
-#     if not url_exist:
-#         print("sd")
-#         pages.append(Page(url, dict))
 
 def add_vulnerability(vulnerability, url, *args, **kwargs):
     dict = {"vulnerability": vulnerability}
@@ -57,6 +46,10 @@ def add_vulnerability(vulnerability, url, *args, **kwargs):
 
 
 def generate():
+    if not pages:
+        logging.error("Cannot generate report. No vulnerabilities added.")
+        return
+
     env = Environment(loader=FileSystemLoader('./report/'))
     template = env.get_template("template.html")
 
@@ -72,4 +65,6 @@ if __name__ == "__main__":
     add_vulnerability("SQLI", "example.com/signup", form="form", payload="pappsd")
     add_vulnerability("SQLI", "example.com/home", form="form", payload="pappsd")
     add_vulnerability("XSS", "example.com/home", form="form", payload="pappsd")
+    add_vulnerability("XSS", "example.com/home", form="form", payload="papfdasfpsd")
+
     generate()

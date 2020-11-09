@@ -3,23 +3,28 @@ import re
 
 import requests
 
-import logformatter
+from report_generator import add_vulnerability
 
 log = logging.getLogger(__name__)
+
 
 def check(session: requests.Session, url: str, sig=None, stop=None) -> None:
     if stop:
         if stop():
             sig.finished.emit()
             return
-        
+
+    # Get the HTML from the URL
     page = session.get(url).text
 
     # match a string of 10 numbers
     # or if it starts with '+' then 10 or more numbers:
     phone_regex = r"(\b\d{10}\b)|(\+\d{10,15}\b)"
-    iterator = re.finditer(phone_regex, page) # find all
-    for match in iterator: # loop through the matches
+    # find all matches
+    iterator = re.finditer(phone_regex, page)
+    # loop through the matches
+    for match in iterator:
+        add_vulnerability("Phone Number", url, data=match.group())
         log.warning(f"phone number found: {match.group()} on {url}")
 
     if stop:
@@ -29,12 +34,16 @@ def check(session: requests.Session, url: str, sig=None, stop=None) -> None:
 
     # match an Email address:
     email_regex = r"[a-zA-Z0-9\._\-\+]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9]+)+"
+    # find all matches
     iterator = re.finditer(email_regex, page)
+    # loop through the matches
     for match in iterator:
+        add_vulnerability("Email", url, data=match.group())
         log.warning(f"email found: {match.group()} on {url}")
-    
+
     if sig:
         sig.finished.emit()
+
 
 if __name__ == "__main__":
     url = "http://dvwa-win10/"

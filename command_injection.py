@@ -1,11 +1,12 @@
-import HTMLParser
 import logging
 import re
 from urllib.parse import unquote_plus, urljoin
 
 import requests
 
+import HTMLParser
 import logformatter
+from report_generator import add_vulnerability
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def is_vulnerable(response: requests.Response) -> bool:
     Returns:
         bool: True if an error is found in the content of `response`, False otherwise
     """
-    if "echo" not in response.text and "TEST" in response.text:
+    if "CommandInjectionDetected" in response.text and "echo" not in response.text  :
         return True
     return False
 
@@ -56,13 +57,18 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
                 elapsed = response.elapsed.total_seconds()
                 log.debug(f"ci.time_based: elapsed={elapsed}")
                 if expected - error <= elapsed <= expected + error:
-                    log.warning(f"Time-based Command Injection Detected on {response.url}")
+                    log.critical(f"Time-based Command Injection Detected on {response.url}")
                     log.info(f"Payload: {payload}")
+                    if 'name' in form_details:
+                        add_vulnerability("TIME-CI", url, form=form_details['name'], payload=payload)
+                        log.info(f"Form name: {form_details['name']}")
+                    else:
+                        add_vulnerability("TIME-CI", url, form="None", payload=payload)
                     return True
     return False
 
 
-def check(session, url, sig=None, stop=None) -> bool:
+def check(session, url, timed=True, sig=None, stop=None) -> bool:
     """Check for Command Injection vulnerability
 
     Args:
@@ -73,6 +79,10 @@ def check(session, url, sig=None, stop=None) -> bool:
     Returns:
         bool: True if Command Injection detected, False otherwise
     """
+    if timed:
+        # Use time-based method
+        if time_based(session, url):
+            return True
     payloads = open("payloads/CommandInjectionPayloads")
     vulnerable = False
     forms = HTMLParser.get_all_forms(session, url)
@@ -92,8 +102,13 @@ def check(session, url, sig=None, stop=None) -> bool:
             if not response:
                 continue
             if is_vulnerable(response):
-                log.warning(f"Command Injection found on {response.url}")
+                log.critical(f"Command Injection found on {response.url}")
                 log.info(f"Payload: {payload}")
+                if 'name' in form_details:
+                    add_vulnerability("CI", url, form=form_details['name'], payload=payload)
+                    log.info(f"Form name: {form_details['name']}")
+                else:
+                    add_vulnerability("CI", url, form="None", payload=payload)
                 vulnerable = True
                 break
     payloads.close()
