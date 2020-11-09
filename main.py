@@ -7,134 +7,111 @@ Usage:
     main.py (-v | --version)
 Options:
     -c, --cookie=<cookie>          Send this Cookie with the requests
-    -C, --command-injection        Check for command injection
-        --crawl                    Check for all URLs
-    -D, --data                     Check for sensitve data
+    -C, --command-injection        Scan for command injection
+        --crawl                    Scan all pages in the website
+    -D, --data                     Scan for sensitve data
         --gui                      Start the graphical interface
     -h, --help                     Show this screen
-        --no-dom                   Don't check for DOM-based XSS
-        --no-time-based            Don't Check using time-based method.
-    -S, --sqli                     Check for SQLi
+        --no-dom                   Don't Scan for DOM-based XSS
+        --no-time-based            Don't Scan using time-based method.
+    -S, --sqli                     Scan for SQLi
         --time=<seconds>           The seconds to inject in time-based TODO
+        --verbose                  Show more info
     -v, --version                  Show the version
-    -V, --versions                 Check for the server version
-    -X, --xss                      Check for XSS
+    -V, --versions                 Scan for the server version
+    -X, --xss                      Scan for XSS
 """
 import logging
-import sys
+
 import requests
 
 import command_injection
-import report_generator
 import data
-import logformatter
-import sqli
-from crawler import get_all_links
-import versions
-from docopt import docopt
-import xss
 import gui
+import logformatter
+import report_generator
+import sqli
+import versions
+import xss
+from crawler import get_all_links
+from docopt import docopt
 
 session = requests.Session()
-# session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
 session.headers['Cookie'] = "PHPSESSID=ctgd2jigvorbntt2hfm4o7sltm; security=low"
 
 
+
 def main():
+    # get the command line arguments
     args = docopt(__doc__)
 
+    if args['--verbose']:
+        # Show INFO level logs
+        logformatter.start_logging(log_level="INFO")
+    else:
+        # Don't show INFO level logs 
+        logformatter.start_logging(log_level="WARNING")
+
     if args['--gui'] or all(not x for x in args.values()):
-        print("Launching GUI...")
+        logging.info("Launching GUI...")
         gui.run()
         return
-    print(args)
-    logformatter.start_logging()
+
     url = ""
     if args['<url>']:
-        if not args['<url>'].startswith("http"):
+        # if the URL doesn't start with http:// or https://
+        if not args['<url>'].startswith(("http://", "https://")):
+            # Add http:// to the begining to the URL
             url = "http://" + args['<url>']
         else:
             url = args['<url>']
+
     if args['--cookie']:
         session.headers['Cookie'] = args['--cookie']
 
     if not valid_url(url, session):
         return
 
+    # List containing all urls to scan
+    urls = []
     if args['--crawl']:
-        crawl(url, args)
-        return
-    checked = False
-    if args['--versions']:
+        # Get all the URLs in the website
+        urls = get_all_links(session, url)
+        if len(urls) > 1:
+            logging.info(f"Scanning {len(urls)} pages")
+    else:
+        # Scan only one URL
+        urls.append(url)
+
+    scan_all = False
+    # If user didn't specify a vlunerability
+    if (not args['--data'] and not args['--versions'] 
+    and not args['--sqli'] and not args['--xss'] 
+    and not args['--command-injection']):
+        # Scan for all vulnerabilities
+        scan_all = True
+
+    # Scan for SQLi and CI using Time-based method?
+    use_time_based = not args['--no-time-based']
+    # Scan for XSS using DOM-based method?
+    use_dom = not args['--no-dom']
+
+    if args['--versions'] or scan_all:
         versions.check(session, url)
-        checked = True
-    if args['--data']:
-        data.check(session, url)
-        checked = True
-    if args['--sqli']:
-        check_time_based = not args['--no-time-based']
-        sqli.check(session, url, check_time_based)
-        checked = True
-    if args['--xss']:
-        check_dom = not args['--no-dom']
-        xss.check(session, url, check_dom)
-        checked = True
-    if args['--command-injection']:
-        check_time_based = not args['--no-time-based']
-        command_injection.check(session, url, check_time_based)
-        checked = True
-    # If user didn't specify a vlunerability, check for all vulnerabilities
-    if not checked:
-        # Check for all vulnerabilities
-        versions.check(session, url)
-
-        data.check(session, url)
-
-        check_time_based = not args['--no-time-based']
-        sqli.check(session, url, check_time_based)
-
-        check_dom = not args['--no-dom']
-        xss.check(session, url, check_dom)
-
-        command_injection.check(session, url, check_time_based)
-    
-    report_generator.generate()
-    session.close()
-
-
-def crawl(url, args):
-    urls = get_all_links(session, url)
-    checked = False
-    if args['--versions']:
-        versions.check(session, url)
-        checked = True
     for url in urls:
         if args['--data']:
             data.check(session, url)
-            checked = True
         if args['--sqli']:
-            check_time_based = not args['--no-time-based']
-            sqli.check(session, url, check_time_based)
-            checked = True
+            sqli.check(session, url, use_time_based)
         if args['--xss']:
-            check_dom = not args['--no-dom']
-            xss.check(session, url, check_dom)
-            checked = True
+            xss.check(session, url, use_dom)
         if args['--command-injection']:
-            check_time_based = not args['--no-time-based']
-            command_injection.check(session, url, check_time_based)
-            checked = True
-        # If user didn't specify a vlunerability, check for all vulnerabilities
-        if not checked:
+            command_injection.check(session, url, use_time_based)
+        if scan_all:
             data.check(session, url)
-
-            check_time_based = not args['--no-time-based']
-            sqli.check(session, url, check_time_based)
-
-            check_dom = not args['--no-dom']
-            xss.check(session, url, check_dom)
-
-            command_injection.check(session, url, check_time_based)
+            sqli.check(session, url, use_time_based)
+            xss.check(session, url, use_dom)
+            command_injection.check(session, url, use_time_based)
         
     report_generator.generate()
     session.close()
