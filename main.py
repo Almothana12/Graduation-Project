@@ -28,17 +28,17 @@ import requests
 import command_injection
 import data
 import gui
-import logformatter
-import report_generator
 import sqli
 import versions
 import xss
-from crawler import get_all_links
 from docopt import docopt
+from report.report_generator import generate_report
+from utils.crawler import get_all_links
+from utils.logformatter import start_logging
+from utils.url_vaildator import valid_url
 
 session = requests.Session()
-session.headers['Cookie'] = "PHPSESSID=ctgd2jigvorbntt2hfm4o7sltm; security=low"
-
+session.headers['Cookie'] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
 
 
 def main():
@@ -47,10 +47,11 @@ def main():
 
     if args['--verbose']:
         # Show INFO level logs
-        logformatter.start_logging(log_level="INFO")
+        start_logging(log_level="INFO")
     else:
         # Don't show INFO level logs 
-        logformatter.start_logging(log_level="WARNING")
+        start_logging(log_level="INFO")
+        # logformatter.start_logging(log_level="WARNING") TODO
 
     if args['--gui'] or all(not x for x in args.values()):
         logging.info("Launching GUI...")
@@ -113,40 +114,8 @@ def main():
             xss.check(session, url, use_dom)
             command_injection.check(session, url, use_time_based)
         
-    report_generator.generate()
+    generate_report()
     session.close()
-
-
-def valid_url(url, session):
-    """Check if `url` is valid and reachable
-
-    Args:
-        url (str): The url to check
-
-    Returns:
-        bool: True if `url` is valid and reachable
-    """
-    # TODO return error codes 
-    try:
-        response = session.get(url)
-        if response.history:
-            logging.warning(f"Redirected to {response.url}")
-        # raise an HTTPError if the request is unsuccessful
-        response.raise_for_status() 
-    except requests.ConnectionError as err:
-        logging.debug(err)
-        logging.error(f"Could Not Reach URL: {err.request.url}")
-        return False
-    except requests.HTTPError as err:
-        logging.debug(err)
-        logging.error(f"URL Returned {err.response.status_code}")
-        return False
-    except requests.Timeout as err:
-        logging.debug(err)
-        logging.error("Request Timed Out")
-        return False
-    return True
-
 
 if __name__ == "__main__":
     main()

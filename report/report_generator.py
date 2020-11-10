@@ -71,7 +71,7 @@ def add_vulnerability(vulnerability, url, *args, **kwargs):
         pages.append(Page(url, dict))
 
 
-def generate():
+def generate_report():
     """Generate an HTML report of all the detected vulnerabilities."""
     if not pages:
         logging.error("Cannot generate report. No vulnerabilities found.")
@@ -96,4 +96,4 @@ if __name__ == "__main__":
     add_vulnerability("XSS", "example.com/home", form="form", payload="pappsd")
     add_vulnerability("XSS", "example.com/home", form="form", payload="papfdasfpsd")
 
-    generate()
+    generate_report()

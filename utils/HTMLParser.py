@@ -50,6 +50,7 @@ def get_form_details(form: bs4.element.Tag) -> dict:
     details["inputs"] = inputs
     details["selects"] = selects
     details["textareas"] = textareas
+    # TODO add line number of form
 
     return details
 
@@ -113,7 +114,9 @@ def submit_form(form_details: dict,
         log.debug(f"submit_form: No data to submit for form: {form_details} in {url}")
         return ""
     if form_details["method"] == "post":
+        # response = session.post(target_url, data=data, timeout=(3.05, 7))
         response = session.post(target_url, data=data)
+
         # log.debug(f"submit_form: POST: {response.url} Data: {data}")
     elif form_details["method"] == "get":
         response = session.get(target_url, params=data)

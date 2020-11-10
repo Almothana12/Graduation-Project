@@ -3,7 +3,7 @@ import re
 
 import requests
 
-from report_generator import add_vulnerability
+from report.report_generator import add_vulnerability
 
 log = logging.getLogger(__name__)
 

@@ -7,9 +7,8 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-import HTMLParser
-import logformatter
-from report_generator import add_vulnerability
+from report.report_generator import add_vulnerability
+from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
 log = logging.getLogger(__name__)
 
@@ -70,7 +69,7 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
         bool: True if XSS detected, False otherwise
     """
     payloads = open("payloads/XSSPayloads")
-    forms = HTMLParser.get_all_forms(session, url)
+    forms = get_all_forms(session, url)
     vulnerable = False
     if stop:
         if stop():
@@ -81,9 +80,8 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
     if dom:
         dom_payload = "<SCrIpT>window.exploitDetected=true</ScRiPt>"
         for form in forms:
-            form_details = HTMLParser.get_form_details(form)
-            response = HTMLParser.submit_form(
-                form_details, url, dom_payload, session)
+            form_details = get_form_details(form)
+            response = submit_form(form_details, url, dom_payload, session)
             if not response:
                 continue
             dom_url = unquote_plus(response.url)
@@ -105,7 +103,7 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
             return True
     # if no DOM XSS detected, check for reflected or stored:
     for form in forms:
-        form_details = HTMLParser.get_form_details(form)
+        form_details = get_form_details(form)
         for payload in payloads:
             if stop:
                 if stop():
@@ -116,8 +114,7 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
                 continue
             payload = payload.replace("\n", "")  # remove newline char
             # log.debug(f"Testing:{url}")
-            response = HTMLParser.submit_form(
-                form_details, url, payload, session)
+            response = submit_form(form_details, url, payload, session)
             if not response:
                 continue
             if payload.lower() in response.text.lower():
@@ -133,13 +130,3 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
     if sig:
         sig.finished.emit()
     return vulnerable
-
-
-if __name__ == "__main__":
-    url = "http://dvwa-win10/vulnerabilities/xss_d/"
-    # url = "https://xss-game.appspot.com/level1/frame"
-    # url = "http://www.insecurelabs.org/Task/Rule1"
-    cookie = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
-    session = requests.Session()
-    session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
-    check(session, url)

@@ -4,9 +4,8 @@ from urllib.parse import unquote_plus, urljoin
 
 import requests
 
-import HTMLParser
-import logformatter
-from report_generator import add_vulnerability
+from report.report_generator import add_vulnerability
+from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
     Returns:
         bool: True if SQLi detected, False otherwise
     """
-    forms = HTMLParser.get_all_forms(session, url)
+    forms = get_all_forms(session, url)
     t1 = session.get(url).elapsed.total_seconds()
     t2 = session.get(url).elapsed.total_seconds()
     t3 = session.get(url).elapsed.total_seconds()
@@ -48,14 +47,13 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
     log.debug("sqli.time_based: avg=%s, error=%s, expected=%s",
               average_time, error_time, expected_time)
     for form in forms:
-        form_details = HTMLParser.get_form_details(form)
+        form_details = get_form_details(form)
         with open("payloads/SQLTimePayloads") as payloads:
             for payload in payloads:
                 payload = payload.replace("\n", "")
                 payload = payload.replace("_TIME_", str(time))
                 log.debug("sqli.time_based: Testing: %s", payload)
-                response = HTMLParser.submit_form(
-                    form_details, url, payload, session)
+                response = submit_form(form_details, url, payload, session)
                 if not response:
                     continue
                 elapsed_time = response.elapsed.total_seconds()
@@ -92,9 +90,9 @@ def check(session: requests.Session, url: str, timed=True, sig=None, stop=None) 
     payloads = open("payloads/SQLPayloads")
     errors = open("payloads/SQLIErrors")
 
-    forms = HTMLParser.get_all_forms(session, url)
+    forms = get_all_forms(session, url)
     for form in forms:
-        form_details = HTMLParser.get_form_details(form)
+        form_details = get_form_details(form)
         for payload in payloads:
             if stop:
                 if stop():
@@ -106,8 +104,7 @@ def check(session: requests.Session, url: str, timed=True, sig=None, stop=None) 
                 continue
             payload = payload.replace("\n", "")  # remove newline char
             # print(f"Testing: {url}")
-            response = HTMLParser.submit_form(
-                form_details, url, payload, session)
+            response = submit_form(form_details, url, payload, session)
             if not response:
                 continue
             if is_vulnerable(response, errors):
@@ -125,12 +122,3 @@ def check(session: requests.Session, url: str, timed=True, sig=None, stop=None) 
     if sig:
         sig.finished.emit()
     return vulnerable
-
-
-if __name__ == "__main__":
-    session = requests.Session()
-    session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Safari/537.36"
-    session.headers["Cookie"] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
-    url = "http://dvwa-win10/vulnerabilities/sqli/"
-    # time_based(session, url)
-    check(session, url)

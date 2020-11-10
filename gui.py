@@ -8,13 +8,13 @@ from PyQt5 import QtWidgets as qtw
 
 import command_injection
 import data
-import report_generator
 import sqli
 import versions
 import xss
-from crawler import get_all_links
-from main import valid_url
-from ui_form import Ui_MainWindow
+from report.report_generator import generate_report
+from ui.ui_form import Ui_MainWindow
+from utils.url_vaildator import valid_url
+from utils.crawler import get_all_links
 
 session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
@@ -71,7 +71,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
 
         self.urlLineEdit.setText("http://dvwa-ubuntu")
         self.cookieLineEdit.setText(
-            "PHPSESSID=fujgkq84eoi1nefirb2cahtgpg; security=low")
+            "PHPSESSID=ctgd2jigvorbntt2hfm4o7sltm; security=low")
 
         self.thread_signal = ThreadSignal()
         self.alive_thread_count = 0
@@ -182,7 +182,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             # No threads left
             self.progressBar.setValue(100)
             session.close()
-            report_generator.generate()
+            generate_report()
             if self.scanButton.text() != "Stopping...":
                 # The threads finished normally
                 qtw.QMessageBox.information(

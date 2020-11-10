@@ -4,9 +4,8 @@ from urllib.parse import unquote_plus, urljoin
 
 import requests
 
-import HTMLParser
-import logformatter
-from report_generator import add_vulnerability
+from utils.HTMLParser import get_all_forms, get_form_details, submit_form
+from report.report_generator import add_vulnerability
 
 log = logging.getLogger(__name__)
 
@@ -43,15 +42,15 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
     error = expected * 0.2
     
     log.debug("ci.time_based: avg=%s, error=%s, expected=%s", avg, error, expected)
-    forms = HTMLParser.get_all_forms(session, url)
+    forms = get_all_forms(session, url)
     for form in forms:
-        form_details = HTMLParser.get_form_details(form)
+        form_details = get_form_details(form)
         with open("payloads/CommandInjectionTimePayloads") as payloads:
             for payload in payloads:
                 payload = payload.replace("\n", "")
                 payload = payload.replace("_TIME_", str(time))
                 log.debug("ci.time_based: Testing: %s", payload)
-                response = HTMLParser.submit_form(form_details, url, payload, session)
+                response = submit_form(form_details, url, payload, session)
                 if not response:
                     continue
                 elapsed = response.elapsed.total_seconds()
@@ -85,9 +84,9 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
             return True
     payloads = open("payloads/CommandInjectionPayloads")
     vulnerable = False
-    forms = HTMLParser.get_all_forms(session, url)
+    forms = get_all_forms(session, url)
     for form in forms:
-        form_details = HTMLParser.get_form_details(form)
+        form_details = get_form_details(form)
         if stop:
             if stop():
                 payloads.close()
@@ -98,7 +97,7 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
                 continue
             payload = payload.replace("\n", "")  # remove newline char
             # log.debug(f"ci: Testing: {payload}")
-            response = HTMLParser.submit_form(form_details, url, payload, session)
+            response = submit_form(form_details, url, payload, session)
             if not response:
                 continue
             if is_vulnerable(response):
