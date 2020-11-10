@@ -122,11 +122,11 @@ def windows_enable_ansi_terminal():
     if (result == 0): raise Exception
 
 
-def start_logging(console_file="stdout", console_color=True):
+def start_logging(console_file="stdout", console_color=True, log_level="INFO"):
 
     setup_logging(
         console_log_output=console_file,
-        console_log_level="INFO", 
+        console_log_level=log_level, 
         console_log_color=console_color,
         console_format="%(color_on)s[%(levelname)s] %(message)s%(color_off)s",
         logfile_file="WS2T.log",
