@@ -85,7 +85,7 @@ def generate_report():
     html_out = template.render(template_vars)
 
     # Write the generated HTML to file.
-    report = open("report/report.html", "w")
+    report = open("report.html", "w")
     report.write(html_out)
     report.close()
 

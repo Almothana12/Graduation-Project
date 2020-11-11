@@ -180,16 +180,18 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.alive_thread_count -= 1
         if self.alive_thread_count == 0:
             # No threads left
+            # Set the progress bar to 100%
             self.progressBar.setValue(100)
+            # close the requests session
             session.close()
-            generate_report()
             if self.scanButton.text() != "Stopping...":
                 # The threads finished normally
-                qtw.QMessageBox.information(
-                    self, 'Scan Complete', 'Scan Complete')
+                self.scan_complete()
             else:
-                # The threads stopped by the user
+                # The threads was stopped by the user
+                # Return the progress bar to normal. 
                 self.progressBar.setMaximum(100)
+                # Show a popup
                 qtw.QMessageBox.information(
                     self, 'Scan Stopped', 'Scanning Stopped successfully')
             self.scanButton.setText("Scan")
@@ -199,6 +201,26 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             percentage = finished_threads / self.max_thread_count * 100
             self.progressBar.setValue(int(percentage))
 
+    def scan_complete(self):
+        msg = qtw.QMessageBox()
+        msg.setWindowTitle("Scan Complete")
+        msg.setText("Scan completed successfully.")
+        msg.setInformativeText("Do you want to generate an HTML report?")
+        msg.setIcon(qtw.QMessageBox.Information)
+        msg.addButton(qtw.QPushButton("Generate Report"), qtw.QMessageBox.ActionRole)
+        msg.setStandardButtons(qtw.QMessageBox.Ok)
+        msg.setDefaultButton(qtw.QMessageBox.Ok)
+        msg.setDetailedText("DETAILS")
+
+        msg.buttonClicked.connect(self.popup_button)
+        msg.exec_()
+
+    def popup_button(self, button):
+        button_clicked = button.text()
+        if button_clicked == "OK":
+            return
+        elif button_clicked == "Generate Report":
+            generate_report()
 
 def run():
     app = qtw.QApplication(sys.argv)
