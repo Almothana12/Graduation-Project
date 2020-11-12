@@ -3,7 +3,9 @@ import re
 from urllib.parse import unquote_plus, urljoin
 
 import requests
+from PyQt5.QtCore import QFile
 
+import payloads
 from report.report_generator import add_vulnerability
 from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
@@ -27,7 +29,7 @@ def is_vulnerable(response: requests.Response, errors) -> bool:
     return False
 
 
-def time_based(session: requests.Session, url: str, time=5) -> bool:
+def time_based(session: requests.Session, url: str, time=5, stop=None) -> bool:
     """Check for SQLi on `url` using time-based method
 
     Args:
@@ -37,6 +39,11 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
     Returns:
         bool: True if SQLi detected, False otherwise
     """
+    payloads_file = QFile(":/SQLTimePayloads")
+    payloads_file.open(QFile.ReadOnly)
+    payloads = bytes(payloads_file.readAll()).decode('utf-8')
+    payloads = payloads.splitlines()
+
     forms = get_all_forms(session, url)
     t1 = session.get(url).elapsed.total_seconds()
     t2 = session.get(url).elapsed.total_seconds()
@@ -48,29 +55,37 @@ def time_based(session: requests.Session, url: str, time=5) -> bool:
               average_time, error_time, expected_time)
     for form in forms:
         form_details = get_form_details(form)
-        with open("payloads/SQLTimePayloads") as payloads:
-            for payload in payloads:
-                payload = payload.replace("\n", "")
-                payload = payload.replace("_TIME_", str(time))
-                log.debug("sqli.time_based: Testing: %s", payload)
-                response = submit_form(form_details, url, payload, session)
-                if not response:
-                    continue
-                elapsed_time = response.elapsed.total_seconds()
-                log.debug(f"sqli.time_based: elapsed={elapsed_time}")
-                if expected_time - error_time <= elapsed_time <= expected_time + error_time:
-                    
-                    log.critical(f"Time-based SQLi Detected on {response.url}")
-                    log.info(f"Payload: {payload}")
-                    if 'name' in form_details:
-                        add_vulnerability("TIME-SQLI", url, form=form_details['name'], payload=payload)
-                        log.info(f"Form name: {form_details['name']}")
-                    else:
-                        add_vulnerability("TIME-SQLI", url, form="None", payload=payload)
-                    return True
+        for payload in payloads:
+            if stop:
+                # check if there is a stop signal
+                if stop():
+                    payloads_file.close()
+                    return False
+            payload = payload.replace("\n", "")
+            # Replace "_TIME_" with the actual time
+            payload = payload.replace("_TIME_", str(time))
+            log.debug("Testing: %s", payload)
+            response = submit_form(form_details, url, payload, session)
+            if not response:
+                continue
+            elapsed_time = response.elapsed.total_seconds()
+            log.debug(f"Elapsed={elapsed_time}")
+            if expected_time - error_time <= elapsed_time <= expected_time + error_time:
+                
+                log.critical(f"Time-based SQLi Detected on {response.url}")
+                log.info(f"Payload: {payload}")
+                if 'name' in form_details:
+                    add_vulnerability("TIME-SQLI", url, form=form_details['name'], payload=payload)
+                    log.info(f"Form name: {form_details['name']}")
+                else:
+                    add_vulnerability("TIME-SQLI", url, form="None", payload=payload)
+                payloads_file.close()
+                return True
+    payloads_file.close()
+    return False
                     
 
-def check(session: requests.Session, url: str, timed=True, sig=None, stop=None) -> bool:
+def check(session: requests.Session, url: str, timed=True, fullscan=False, sig=None, stop=None) -> bool:
     """Check for SQLi vulnerability on `url`
 
     Args:
@@ -81,27 +96,42 @@ def check(session: requests.Session, url: str, timed=True, sig=None, stop=None) 
     Returns:
         bool: True if SQLi detected, False otherwise
     """
+
     if timed:
         # Use time-based method
-        if time_based(session, url):
+        if time_based(session, url, stop):
             return True
+        if stop:
+            # check if there is a stop signal
+            if stop():
+                sig.finished.emit()
+                return
+    # Open the SQL payloads file
+    if fullscan:
+        payloads_file = QFile(":/SQLPayloads-full")
+    else:
+        payloads_file = QFile(":/SQLPayloads-quick")
+    payloads_file.open(QFile.ReadOnly)
+    payloads = bytes(payloads_file.readAll()).decode('utf-8')
+    payloads = payloads.splitlines()
+
+    # Open the SQL errors file 
+    errors_file = QFile(":/SQLErrors")
+    errors_file.open(QFile.ReadOnly)
+    errors = bytes(errors_file.readAll()).decode('utf-8')
+    errors = errors.splitlines()
 
     vulnerable = False
-    payloads = open("payloads/SQLPayloads")
-    errors = open("payloads/SQLIErrors")
-
     forms = get_all_forms(session, url)
     for form in forms:
         form_details = get_form_details(form)
         for payload in payloads:
             if stop:
                 if stop():
-                    payloads.close()
-                    errors.close()
+                    payloads_file.close()
+                    errors_file.close()
                     sig.finished.emit()
                     return
-            if payload.startswith('#'):  # Comment
-                continue
             payload = payload.replace("\n", "")  # remove newline char
             # print(f"Testing: {url}")
             response = submit_form(form_details, url, payload, session)
@@ -117,8 +147,8 @@ def check(session: requests.Session, url: str, timed=True, sig=None, stop=None) 
                     add_vulnerability("SQLI", url, form="None", payload=payload)
                 vulnerable = True
                 break
-    payloads.close()
-    errors.close()
+    payloads_file.close()
+    errors_file.close()
     if sig:
         sig.finished.emit()
     return vulnerable

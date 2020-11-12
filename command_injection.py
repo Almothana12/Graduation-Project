@@ -3,9 +3,10 @@ import re
 from urllib.parse import unquote_plus, urljoin
 
 import requests
+from PyQt5.QtCore import QFile
 
-from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 from report.report_generator import add_vulnerability
+from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ def is_vulnerable(response: requests.Response) -> bool:
     return False
 
 
-def time_based(session: requests.Session, url: str, time=10) -> bool:
+def time_based(session: requests.Session, url: str, time=10, stop=None) -> bool:
     """Check if `url` has a Command Injection vulnerability using time-based method
 
     Args:
@@ -34,6 +35,12 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
     Returns:
         bool: True if Command Injection detected, False otherwise
     """
+    # Open the Command Injection time-based payloads file
+    payloads_file = QFile(":/CommandInjectionTimePayloads")
+    payloads_file.open(QFile.ReadOnly)
+    payloads = bytes(payloads_file.readAll()).decode('utf-8')
+    payloads = payloads.splitlines()
+
     t1 = session.get(url).elapsed.total_seconds()
     t2 = session.get(url).elapsed.total_seconds()
     t3 = session.get(url).elapsed.total_seconds()
@@ -41,29 +48,35 @@ def time_based(session: requests.Session, url: str, time=10) -> bool:
     expected = time + avg
     error = expected * 0.2
     
-    log.debug("ci.time_based: avg=%s, error=%s, expected=%s", avg, error, expected)
+    log.debug("avg=%s, error=%s, expected=%s", avg, error, expected)
     forms = get_all_forms(session, url)
     for form in forms:
         form_details = get_form_details(form)
-        with open("payloads/CommandInjectionTimePayloads") as payloads:
-            for payload in payloads:
-                payload = payload.replace("\n", "")
-                payload = payload.replace("_TIME_", str(time))
-                log.debug("ci.time_based: Testing: %s", payload)
-                response = submit_form(form_details, url, payload, session)
-                if not response:
-                    continue
-                elapsed = response.elapsed.total_seconds()
-                log.debug(f"ci.time_based: elapsed={elapsed}")
-                if expected - error <= elapsed <= expected + error:
-                    log.critical(f"Time-based Command Injection Detected on {response.url}")
-                    log.info(f"Payload: {payload}")
-                    if 'name' in form_details:
-                        add_vulnerability("TIME-CI", url, form=form_details['name'], payload=payload)
-                        log.info(f"Form name: {form_details['name']}")
-                    else:
-                        add_vulnerability("TIME-CI", url, form="None", payload=payload)
-                    return True
+        for payload in payloads:
+            if stop:
+                if stop():
+                    payloads_file.close()
+                    return
+            payload = payload.replace("\n", "")
+            # Replace "_TIME_" with the actual time
+            payload = payload.replace("_TIME_", str(time))
+            log.debug("Testing: %s", payload)
+            response = submit_form(form_details, url, payload, session)
+            if not response:
+                continue
+            elapsed = response.elapsed.total_seconds()
+            log.debug(f"Elapsed={elapsed}")
+            if expected - error <= elapsed <= expected + error:
+                log.critical(f"Time-based Command Injection Detected on {response.url}")
+                log.info(f"Payload: {payload}")
+                if 'name' in form_details:
+                    add_vulnerability("TIME-CI", url, form=form_details['name'], payload=payload)
+                    log.info(f"Form name: {form_details['name']}")
+                else:
+                    add_vulnerability("TIME-CI", url, form="None", payload=payload)
+                payloads_file.close()
+                return True
+    payloads_file.close()
     return False
 
 
@@ -80,16 +93,21 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
     """
     if timed:
         # Use time-based method
-        if time_based(session, url):
+        if time_based(session, url, stop):
             return True
-    payloads = open("payloads/CommandInjectionPayloads")
+    # Open the Command Injection payloads file
+    payloads_file = QFile(":/CommandInjectionPayloads")
+    payloads_file.open(QFile.ReadOnly)
+    payloads = bytes(payloads_file.readAll()).decode('utf-8')
+    payloads = payloads.splitlines()
+
     vulnerable = False
     forms = get_all_forms(session, url)
     for form in forms:
         form_details = get_form_details(form)
         if stop:
             if stop():
-                payloads.close()
+                payloads_file.close()
                 sig.finished.emit()
                 return
         for payload in payloads:
@@ -110,7 +128,7 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
                     add_vulnerability("CI", url, form="None", payload=payload)
                 vulnerable = True
                 break
-    payloads.close()
+    payloads_file.close()
     if sig:
         sig.finished.emit()
     return vulnerable

@@ -54,7 +54,6 @@ pg_SLEEP(_TIME_)#
 or pg_SLEEP(_TIME_)
 or pg_SLEEP(_TIME_)--
 or pg_SLEEP(_TIME_)#
-'\"
 AnD SLEEP(_TIME_)
 AnD SLEEP(_TIME_)--
 AnD SLEEP(_TIME_)#

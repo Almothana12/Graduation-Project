@@ -34,6 +34,7 @@ class QTextEditLogger(logging.Handler, qtc.QObject):
         self.widget = qtw.QPlainTextEdit(parent)
         self.widget.setReadOnly(True)
         self.appendPlainText.connect(self.widget.appendPlainText)
+        self.setLevel("INFO")
 
     def emit(self, record):
         msg = self.format(record)
@@ -47,37 +48,27 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
         self.scanButton.clicked.connect(self.scan)
 
-        # Enable log messages in terminal
-        logging.basicConfig(
-            level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
+
         # Initialize the log box
         self.logTextBox = QTextEditLogger(self)
         # Set the log format of the box
         self.logTextBox.setFormatter(
             logging.Formatter('[%(levelname)s] %(message)s'))
         logging.getLogger().addHandler(self.logTextBox)
-        logging.getLogger().setLevel(logging.INFO)
-
-        # Also write logs to WS2T.log with log level=DEBUG
-        fh = logging.FileHandler('WS2T.log')
-        fh.setLevel(logging.DEBUG)
-        # Set the log format of the box
-        fh.setFormatter(logging.Formatter(
-            '%(asctime)s [%(levelname)s] %(module)s %(funcName)s %(message)s'))
-        logging.getLogger().addHandler(fh)
 
         # Add the text box widget to the predefined layout
         self.logLayout.addWidget(self.logTextBox.widget)
 
-        self.urlLineEdit.setText("http://dvwa-ubuntu")
+        # self.urlLineEdit.setText("http://dvwa-ubuntu/vulnerabilities/xss_d/")
+        self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
         self.cookieLineEdit.setText(
             "PHPSESSID=ctgd2jigvorbntt2hfm4o7sltm; security=low")
 
-        self.thread_signal = ThreadSignal()
         self.alive_thread_count = 0
         self.max_thread_count = 0
         self.stop_threads = False
         self.threads = []
+        self.thread_signal = ThreadSignal()
         self.thread_signal.finished.connect(self.thread_finished)
         self.progressBar.setHidden(True)
 
@@ -108,7 +99,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         check_version = self.versionCheckBox.isChecked()
         check_data = self.dataCheckBox.isChecked()
         check_time_based = False  # TODO
-        check_dom_based = False  # TODO
+        check_dom_based = True  # TODO
+        fullscan = False
         crawl = self.allPages_radioButton.isChecked()
 
         if url:
@@ -156,14 +148,14 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 data_thread.start()
             if check_sqli:
                 sqli_thread = Thread(target=sqli.check, args=(
-                    session, url, check_time_based, self.thread_signal, lambda: self.stop_threads))
+                    session, url, check_time_based, fullscan, self.thread_signal, lambda: self.stop_threads))
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 sqli_thread.start()
 
             if check_xss:
                 xss_thread = Thread(target=xss.check, args=(
-                    session, url, check_dom_based, self.thread_signal, lambda: self.stop_threads))
+                    session, url, check_dom_based, fullscan, self.thread_signal, lambda: self.stop_threads))
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 xss_thread.start()
@@ -184,6 +176,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             self.progressBar.setValue(100)
             # close the requests session
             session.close()
+            xss.quit()
             if self.scanButton.text() != "Stopping...":
                 # The threads finished normally
                 self.scan_complete()
@@ -230,4 +223,7 @@ def run():
 
 
 if __name__ == "__main__":
+        # Enable log messages in terminal
+    logging.basicConfig(
+        level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
     run()

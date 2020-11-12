@@ -1,41 +1,79 @@
 import logging
+import sys
 from http.cookies import SimpleCookie
 from urllib.parse import unquote_plus
 
 import requests
-from bs4 import BeautifulSoup
+from msedge.selenium_tools import Edge, EdgeOptions  # msedge-selenium-tools
+from PyQt5.QtCore import QFile
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 
+import payloads
 from report.report_generator import add_vulnerability
 from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
 log = logging.getLogger(__name__)
 
+browser = None
 
-def check_dom(url: str, str_cookie=None):
-    """Check `url` for DOM-Based XSS
+def init_browser(url: str, str_cookie=None):
+    global browser
+    if browser:
+        # Browser is already initilized
+        return browser
+    # Initilize the browser
+    if (sys.platform == "win32"):
+        # If on Windows
+        try:
+            # Try the Chrome webdriver
+            options = ChromeOptions()
+            # Add options for imporved performance
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--no-sandbox")
+            # Run in headless mode
+            options.add_argument("--headless")
+            # Hide log message
+            options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            # Get the webdriver
+            browser = webdriver.Chrome(executable_path="webdrivers/chromedriver.exe", options=options)
+            # Test if Chrome binary exist
+            browser.get(url)
+            log.debug("initialized Chrome Driver")
+        except:
+            log.debug("Failed to set-up Chrome webdriver")
+            # Else, try the MS Edge webdriver
+            try:
+                edge_options = EdgeOptions()
+                edge_options.use_chromium = True
+                # Run in headless mode
+                edge_options.add_argument('headless')
+                edge_options.add_argument('disable-gpu')
+                # Get the webdriver
+                browser = Edge(executable_path="webdrivers/msedgedriver.exe", options=edge_options)
+                log.debug("initialized Edge Driver")
+            except:
+                log.error("Could not set-up a webdriver")
+                log.debug("Chrome or Chromium Edge must be installed to scan for DOM-based XSS vulnerability")
+                return None
+    else:
+        # *nix
+        try:
+            options = FirefoxOptions()
+            # Run in headless mode
+            options.add_argument("--headless")
+            # Get the webdriver
+            browser = webdriver.Firefox(executable_path="webdrivers/geckodriver", options=options)
+            # Test if Firefox binary exist
+            browser.get(url)
+            log.debug("initialized Firefox Driver")
+        except:
+            log.error("Could not set-up a webdriver")
+            log.debug("Firefox must be installed to scan for DOM-based XSS vulnerability")
+            return None
 
-    Args:
-        url (str): The URL of the page
-
-    Returns:
-        bool: True if DOM-Based XSS found, False otherwise
-    """
-    log.debug(f"Checking DOM XSS on {url}")
-
-    options = Options()
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")  # linux only
-    options.add_argument("--headless")
-    try:
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    except:
-        pass
-    # webdriver.firefox.options.headless = True
-    # fireFoxOptions.set_headless()
-    browser = webdriver.Chrome(options=options)
 
     if str_cookie:
         cookie = SimpleCookie()
@@ -48,17 +86,30 @@ def check_dom(url: str, str_cookie=None):
         for key in cookies.keys():
             value = cookies[key]
             browser.add_cookie({"name": key, "value": value})
+    return browser
+
+def check_dom(url: str, str_cookie=None):
+    """Check `url` for DOM-Based XSS
+
+    Args:
+        url (str): The URL of the page.
+        str_cookie (str): A Cookie string.
+
+    Returns:
+        bool: True if DOM-Based XSS found, False if not.
+    """
+    browser = init_browser(url, str_cookie)
+    if not browser:
+        return
     browser.get(url)
     exploitDetected = browser.execute_script("return window.exploitDetected")
-    browser.quit()
-    log.debug(f"Finished checking DOM XSS")
     if exploitDetected:
         return True
     else:
         return False
 
 
-def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) -> bool:
+def check(session: requests.Session, url: str, dom=True, fullscan=False, sig=None, stop=None) -> bool:
     """Check `url` for XSS vulnerability
 
     Args:
@@ -68,12 +119,10 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
     Returns:
         bool: True if XSS detected, False otherwise
     """
-    payloads = open("payloads/XSSPayloads")
     forms = get_all_forms(session, url)
     vulnerable = False
     if stop:
         if stop():
-            payloads.close()
             sig.finished.emit()
             return
     # Check for DOM XSS
@@ -101,7 +150,15 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
             if sig:
                 sig.finished.emit()
             return True
-    # if no DOM XSS detected, check for reflected or stored:
+    # Open the XSS payloads file
+    if fullscan:
+        payloads_file = QFile(":/XSSPayloads-full")
+    else:
+        payloads_file = QFile(":/XSSPayloads-quick")
+    payloads_file.open(QFile.ReadOnly)
+    payloads = bytes(payloads_file.readAll()).decode('utf-8')
+    payloads = payloads.splitlines()
+
     for form in forms:
         form_details = get_form_details(form)
         for payload in payloads:
@@ -110,10 +167,11 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
                     payloads.close()
                     sig.finished.emit()
                     return
-            if payload.startswith('#'):  # Ignore comment
+            # Ignore comment
+            if payload.startswith('#'):
                 continue
-            payload = payload.replace("\n", "")  # remove newline char
-            # log.debug(f"Testing:{url}")
+            # remove newline char
+            payload = payload.replace("\n", "")
             response = submit_form(form_details, url, payload, session)
             if not response:
                 continue
@@ -127,6 +185,16 @@ def check(session: requests.Session, url: str, dom=True, sig=None, stop=None) ->
                     add_vulnerability("XSS", url, form="None", payload=payload)
                 vulnerable = True
                 break
+    payloads.close()
     if sig:
         sig.finished.emit()
     return vulnerable
+
+def quit():
+    """Close the browser. 
+    This should be called after checking for DOM-based XSS
+    """
+    global browser
+    if browser:
+        browser.quit()
+        browser = None
