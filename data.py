@@ -17,9 +17,8 @@ def check(session: requests.Session, url: str, sig=None, stop=None) -> None:
     # Get the HTML from the URL
     page = session.get(url).text
 
-    # match a string of 10 numbers
-    # or if it starts with '+' then 10 or more numbers:
-    phone_regex = r"(\b\d{10}\b)|(\+\d{10,15}\b)"
+    # match a string that starts with '+' then 10-15 numbers:
+    phone_regex = r"\+\d{10,15}\b"
     # find all matches
     iterator = re.finditer(phone_regex, page)
     # loop through the matches
@@ -31,6 +30,60 @@ def check(session: requests.Session, url: str, sig=None, stop=None) -> None:
         if stop():
             sig.finished.emit()
             return
+
+    #French         
+    phone_regex = r"^((\+)33|0)[1-9](\d{2}){4}$"
+    iterator = re.finditer(phone_regex, page) # find all
+    for match in iterator: # loop through the matches
+        log.warning(f"phone number found: {match.group()} on {url}")
+
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return
+    # UK 
+    phone_regex = r"^\+?(44)?(0|7)\d{9,13}$'"
+    iterator = re.finditer(phone_regex, page) # find all
+    for match in iterator: # loop through the matches
+        log.warning(f"phone number found: {match.group()} on {url}")
+
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return     
+
+    # india 
+    phone_regex = r"^(?:(?:\+|0{0,2})91(\s*[\ -]\s*)?|[0]?)?[789]\d{9}|(\d[ -]?){10}\d$"
+    iterator = re.finditer(phone_regex, page) # find all
+    for match in iterator: # loop through the matches
+        log.warning(f"phone number found: {match.group()} on {url}")
+
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return 
+    #US
+    phone_regex = r"^(\([0-9]{3}\)|[0-9]{3}-)[0-9]{3}-[0-9]{4}$"
+    iterator = re.finditer(phone_regex, page) # find all
+    for match in iterator: # loop through the matches
+        log.warning(f"phone number found: {match.group()} on {url}")
+
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return 
+         
+    #Pakistan 
+    phone_regex = r"^(0)((3[0-6][0-9]))(\d{7})$"
+    iterator = re.finditer(phone_regex, page) # find all
+    for match in iterator: # loop through the matches
+        log.warning(f"phone number found: {match.group()} on {url}")
+
+
+    if stop:
+        if stop():
+            sig.finished.emit()
+            return 
 
     # match an Email address:
     email_regex = r"[a-zA-Z0-9\._\-\+]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9]+)+"
