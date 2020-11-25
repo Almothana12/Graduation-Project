@@ -142,7 +142,7 @@ def start_logging(console_file="stdout", console_color=True, log_level="INFO"):
             logging.debug("Could not enable Windows ANSI terminal")
             
 
-logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
 logging.getLogger("selenium").setLevel(logging.WARNING)
 logging.getLogger('chardet').setLevel(logging.INFO)
 logging.getLogger('bs4').setLevel(logging.ERROR)
