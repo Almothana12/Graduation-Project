@@ -22,6 +22,7 @@ Options:
     -X, --xss                      Scan for XSS
 """
 import logging
+from datetime import datetime
 
 import requests
 
@@ -32,7 +33,7 @@ import sqli
 import versions
 import xss
 from docopt import docopt
-from report.report_generator import generate_report
+from report import report_generator
 from utils.crawler import get_all_links
 from utils.logformatter import start_logging
 from utils.url_vaildator import valid_url
@@ -58,6 +59,9 @@ def main():
         gui.run()
         return
 
+    # Get the datetime without microseconds
+    report_generator.start_time = datetime.now().replace(microsecond=0)
+    
     url = ""
     if args['<url>']:
         # if the URL doesn't start with http:// or https://
@@ -78,11 +82,13 @@ def main():
     if args['--crawl']:
         # Get all the URLs in the website
         urls = get_all_links(session, url)
+        report_generator.pages_count = len(urls)
         if len(urls) > 1:
             logging.info(f"Scanning {len(urls)} pages")
     else:
         # Scan only one URL
         urls.append(url)
+        report_generator.pages_count = 1
 
     scan_all = False
     # If user didn't specify a vlunerability
@@ -113,8 +119,12 @@ def main():
             sqli.check(session, url, use_time_based)
             xss.check(session, url, use_dom)
             command_injection.check(session, url, use_time_based)
-        
-    generate_report()
+    
+    # Get the datetime without microseconds
+    report_generator.finish_time = datetime.now().replace(microsecond=0)
+    # Generate a report
+    report_generator.generate_report()
+    # close the requests session
     session.close()
 
 if __name__ == "__main__":
