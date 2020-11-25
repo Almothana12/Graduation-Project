@@ -1,5 +1,6 @@
 import logging
 import sys
+from datetime import datetime
 from threading import Thread
 
 import requests
@@ -11,10 +12,10 @@ import data
 import sqli
 import versions
 import xss
-from report.report_generator import generate_report
+from report import report_generator
 from ui.ui_form import Ui_MainWindow
-from utils.url_vaildator import valid_url
 from utils.crawler import get_all_links
+from utils.url_vaildator import valid_url
 
 session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
@@ -42,15 +43,17 @@ class QTextEditLogger(logging.Handler, qtc.QObject):
 
 
 class MainWindow(qtw.QMainWindow, Ui_MainWindow):
+    UrlError = qtc.pyqtSignal(str)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
-        self.scanButton.clicked.connect(self.scan)
 
-
+        self.scanButton.clicked.connect(self.quickscan)
+        self.UrlError.connect(self.errorPopup)
         # Initialize the log box
         self.logTextBox = QTextEditLogger(self)
+        self.logTextBox.widget.setVisible(False)
         # Set the log format of the box
         self.logTextBox.setFormatter(
             logging.Formatter('[%(levelname)s] %(message)s'))
@@ -58,11 +61,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
 
         # Add the text box widget to the predefined layout
         self.logLayout.addWidget(self.logTextBox.widget)
-
-        # self.urlLineEdit.setText("http://dvwa-ubuntu/vulnerabilities/xss_d/")
-        self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
-        self.cookieLineEdit.setText(
-            "PHPSESSID=ctgd2jigvorbntt2hfm4o7sltm; security=low")
+        # self.urlLineEdit.setText("http://dvwa-ubuntu/vulnerabilities/sqli/")
+        self.urlLineEdit.setText("http://dvwa-win10")
+        # self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
+        self.cookieLineEdit.setText("PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
 
         self.alive_thread_count = 0
         self.max_thread_count = 0
@@ -72,25 +74,49 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.thread_signal.finished.connect(self.thread_finished)
         self.progressBar.setHidden(True)
 
-    def scan(self):
+    def errorPopup(self, text):
+        qtw.QMessageBox.critical(self, 'Error', text)
+
+
+    def quickscan(self):
         if self.scanButton.text() == "Stop" or self.scanButton.text() == "Stopping...":
             # Abort scanning. Stop the threads
             self.scanButton.setText("Stopping...")
             self.stop_threads = True
+            # Stop the progress bar
             self.progressBar.setMaximum(0)
             return
 
+        # Initializing variables for report generation
+        report_generator.pages = []
+        report_generator.vuln_count = 0
+        # Get the datetime without microseconds
+        report_generator.start_time = datetime.now().replace(microsecond=0)
+        
         # Clear the log text box
         self.logTextBox.widget.clear()
-
+        # Change the text of the button to Stop
+        self.scanButton.setText("Stop")
         # The total number of threads
         self.max_thread_count = 0
         # The number of alive threds
         self.alive_thread_count = 0
-
+        # Stop flag
         self.stop_threads = False
 
-        # get what the user chose
+        # Show the log box and the progress bar
+        self.logTextBox.widget.setVisible(True)
+        self.progressBar.setHidden(False)
+        self.progressBar.setValue(0)
+        # Make the progress bar in loading state
+        self.progressBar.setMaximum(0)
+
+        scan = Thread(target=self.scan, args=(False,))
+        scan.start()
+
+
+    def scan(self, fullscan):
+        # get what the user entered
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
         check_xss = self.xssCheckBox.isChecked()
@@ -98,47 +124,54 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         check_ci = self.ciCheckBox.isChecked()
         check_version = self.versionCheckBox.isChecked()
         check_data = self.dataCheckBox.isChecked()
-        check_time_based = False  # TODO
-        check_dom_based = True  # TODO
-        fullscan = False
         crawl = self.allPages_radioButton.isChecked()
+        # Check DOM and time-based if full scan
+        check_time_based = fullscan
+        check_dom_based = fullscan
 
+        # Check if there is a URL and is valid
         if url:
             # if the URL doesn't start with http:// or https://, add http:// to the begining to the URL
             if not url.startswith(("http://", "https://")):
                 url = "http://" + url
+            # Add the cookie to the session if it exists
+            if cookie:
+                session.headers['Cookie'] = cookie
+            # Check that the URL is valid and reachable
+            if not valid_url(url, session):
+                self.UrlError.emit(f"Could not connect to {url} \nURL not valid or unreachable")
+                self.scanButton.setText("Scan")
+                self.progressBar.setVisible(False)
+                return
         else:
-            # If no URL entered, show a popup message and return
-            qtw.QMessageBox.critical(self, 'Error', 'No URL Entered')
+            # No URL entered
+            self.UrlError.emit("No URL Entered")
+            self.scanButton.setText("Scan")
+            self.progressBar.setVisible(False)
             return
-        if cookie:
-            session.headers['Cookie'] = cookie
-        if not valid_url(url, session):
-            qtw.QMessageBox.critical(
-                self, 'Error', f"Could not connect to {url} \nURL not valid or unreachable")
-            return
-
-        self.scanButton.setText("Stop")
-        # Show the progress bar
-        self.progressBar.setHidden(False)
 
         # List containing all urls to scan
         urls = []
         if crawl:
             urls = get_all_links(session, url)
+            report_generator.pages_count = len(urls)
             if len(urls) > 1:
+                pass
                 logging.info(f"Scanning {len(urls)} pages")
         else:
             # Scan only one URL
             urls.append(url)
+            report_generator.pages_count = 1
 
         if check_version:
             versions_thread = Thread(
-                target=versions.check, args=(session, url, self.thread_signal, lambda: self.stop_threads))
+                target=versions.check, args=(session, url, self.thread_signal, lambda: self.stop_threads, False))
             self.max_thread_count += 1
             self.alive_thread_count += 1
             versions_thread.start()
-
+        # Start the progress bar
+        self.progressBar.setMaximum(100)
+        # For each page start threads to check for vulnerabilities
         for url in urls:
             if check_data:
                 data_thread = Thread(
@@ -152,7 +185,6 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 sqli_thread.start()
-
             if check_xss:
                 xss_thread = Thread(target=xss.check, args=(
                     session, url, check_dom_based, fullscan, self.thread_signal, lambda: self.stop_threads))
@@ -177,6 +209,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             # close the requests session
             session.close()
             xss.quit()
+            report_generator.finish_time = datetime.now().replace(microsecond=0)
             if self.scanButton.text() != "Stopping...":
                 # The threads finished normally
                 self.scan_complete()
@@ -213,7 +246,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         if button_clicked == "OK":
             return
         elif button_clicked == "Generate Report":
-            generate_report()
+            report_generator.generate_report()
 
 def run():
     app = qtw.QApplication(sys.argv)
