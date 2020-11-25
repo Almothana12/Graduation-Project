@@ -93,7 +93,7 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
     """
     if timed:
         # Use time-based method
-        if time_based(session, url, stop):
+        if time_based(session, url, stop=stop):
             return True
     # Open the Command Injection payloads file
     payloads_file = QFile(":/CommandInjectionPayloads")

@@ -99,7 +99,7 @@ def check(session: requests.Session, url: str, timed=True, fullscan=False, sig=N
 
     if timed:
         # Use time-based method
-        if time_based(session, url, stop):
+        if time_based(session, url, stop=stop):
             return True
         if stop:
             # check if there is a stop signal

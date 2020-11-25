@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from http.cookies import SimpleCookie
 from urllib.parse import unquote_plus
 
@@ -65,13 +66,17 @@ def init_browser(url: str, str_cookie=None):
             # Run in headless mode
             options.add_argument("--headless")
             # Get the webdriver
-            browser = webdriver.Firefox(executable_path="webdrivers/geckodriver", options=options)
+            try:
+                browser = webdriver.Firefox(options=options)
+            except:
+                log.debug("geckodriver is not in PATH")
+                browser = webdriver.Firefox(executable_path="webdrivers/geckodriver", options=options)
             # Test if Firefox binary exist
             browser.get(url)
             log.debug("initialized Firefox Driver")
         except:
             log.error("Could not set-up a webdriver")
-            log.debug("Firefox must be installed to scan for DOM-based XSS vulnerability")
+            log.exception("Firefox must be installed to scan for DOM-based XSS vulnerability")
             return None
 
 
@@ -100,7 +105,7 @@ def check_dom(url: str, str_cookie=None):
     """
     browser = init_browser(url, str_cookie)
     if not browser:
-        return
+        return False
     browser.get(url)
     exploitDetected = browser.execute_script("return window.exploitDetected")
     if exploitDetected:
@@ -164,7 +169,7 @@ def check(session: requests.Session, url: str, dom=True, fullscan=False, sig=Non
         for payload in payloads:
             if stop:
                 if stop():
-                    payloads.close()
+                    payloads_file.close()
                     sig.finished.emit()
                     return
             # Ignore comment
@@ -185,7 +190,7 @@ def check(session: requests.Session, url: str, dom=True, fullscan=False, sig=Non
                     add_vulnerability("XSS", url, form="None", payload=payload)
                 vulnerable = True
                 break
-    payloads.close()
+    payloads_file.close()
     if sig:
         sig.finished.emit()
     return vulnerable
