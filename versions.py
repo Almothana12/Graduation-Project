@@ -5,8 +5,6 @@ import requests
 from colorama import Back, Fore, Style, init
 from packaging.version import parse as parse_version
 
-import logformatter
-
 init()  # Initialise Colorama
 
 log = logging.getLogger(__name__)
@@ -14,7 +12,7 @@ log = logging.getLogger(__name__)
 # A dict containing the lastest supported version of each program
 versions = {
     "Apache": parse_version("2.4"),   # https://www.rapid7.com/db/vulnerabilities/apache-httpd-obsolete
-    "PHP": parse_version("7.2"),      # https://www.php.net/supported-versions.php
+    "PHP": parse_version("7.3"),      # https://www.php.net/supported-versions.php
     "Lighttp": parse_version("1.4"),  # https://www.rapid7.com/db/vulnerabilities/http-lighttpd-obsolete
     "NginX": parse_version("1.18"),   # https://nginx.org/en/download.html
     "IIS": parse_version("10")
@@ -41,7 +39,7 @@ def get_version(name: str) -> str:
         return ""
 
 
-def check(session, url, sig=None, stop=None) -> None:
+def check(session, url, sig=None, stop=None, color=True) -> None:
     """Search and Print the server's version
 
     Args:
@@ -54,24 +52,25 @@ def check(session, url, sig=None, stop=None) -> None:
             return
     response = session.get(url)
     # Fill the headers list
+    # TODO write this in report
     if 'server' in response.headers:
-        log.debug(f"versions: 'server' header found: {response.headers['server']}")
+        log.debug(f"Server header found: {response.headers['server']}")
         headers.append(response.headers['server'])
     if 'x-powered-by' in response.headers:
-        log.debug(f"versions: 'x-powered-by' header found: {response.headers['x-powered-by']}")
+        log.debug(f"x-powered-by header found: {response.headers['x-powered-by']}")
         headers.append(response.headers['x-powered-by'])
     if 'X-Runtime' in response.headers:
-        log.debug(f"versions: 'X-Runtime' header found: {response.headers['X-Runtime']}")
+        log.debug(f"X-Runtime header found: {response.headers['X-Runtime']}")
         headers.append(response.headers['X-Runtime'])
     if 'X-Version' in response.headers:
-        log.debug(f"versions: 'X-Version' header found: {response.headers['X-Version']}")
+        log.debug(f"X-Version header found: {response.headers['X-Version']}")
         headers.append(response.headers['X-Version'])
     if 'X-AspNet-Version' in response.headers:
-        log.debug(f"versions: 'X-AspNet-Version' header found: {response.headers['X-AspNet-Version']}")
+        log.debug(f"X-AspNet-Version header found: {response.headers['X-AspNet-Version']}")
         headers.append(response.headers['X-AspNet-Version'])
 
     if not headers:
-        log.debug("Could not get server version info")
+        log.debug("Could not get server info")
         if sig:
             sig.finished.emit()
         return
@@ -87,11 +86,14 @@ def check(session, url, sig=None, stop=None) -> None:
             version_found = True
             server_version = parse_version(server_version)
             if server_version < supported_version:
-                log.warning(f"{name} version: {server_version}  {Fore.RED}(outdated){Style.RESET_ALL}")
+                if color:
+                    log.warning(f"{name} version: {server_version}  {Fore.RED}(outdated){Style.RESET_ALL}")
+                else:
+                    log.warning(f"{name} version: {server_version}  is outdated")
             else:
                 log.info(f"{name} version: {server_version}")
     if version_found:
-        log.warning("A version is found on the 'server' HTTP header. Attackers could use this information for malicious reasons")  # TODO write a more helpful message
+        log.warning("A server version is found on the HTTP response header. Attackers could use this information for malicious reasons")
     else:
         log.debug("Could not get server version info")
 
