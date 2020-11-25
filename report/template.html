@@ -1,143 +1,167 @@
 <!DOCTYPE html>
 <html>
-  <head lang="en">
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, shrink-to-fit=no"
-    />
 
-    <link rel="stylesheet" href="css/bootstrap.css" />
+<head lang="en">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
-    <title>WS2T Report</title>
-  </head>
+  <link rel="stylesheet" href="css/bootstrap.css" />
+  <script src="js/jquery-1.11.0.min.js"></script>
+  <script src="js/bootstrap.js"></script>
 
-  <body>
-    {% for page in pages %}
-    <div class="container">
-      <h3>{{page.url}}:</h3>
+  <title>WS2T Report</title>
+</head>
+
+<body class="bg-light">
+  <br>
+  <div class="container text-center ">
+    <div class="card mb-5">
+      <div class="card-header"><b>Scan Results</b></div>
+      <div class="card-columns pt-4 px-3">
+        {% for title in info %}
+        <div class="card text-white bg-dark mb-4 text-center">
+          <div class="card-header"><b>{{title}}</b></div>
+          <div class="card-body text-warning">
+            <h3 class="card-title"><b>{{info[title]}}</b></h3>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% for page in pages %}
+  <div class="container">
+    <div class="card mb-5">
+      <div class="card-header">
+        <h3 class="text-dark"><b>{{page.url}}:</b></h3>
+      </div>
       {% if page.sqli %}
-      <div class="alert alert-danger" role="alert">
-        SQL Injection Detected on this page.
+      <div class="alert alert-danger my-2 mt-4 mx-3" role="alert">
+        SQL Injection detected on this page. <a data-toggle="collapse" href="#SQLITable{{loop.index}}"
+          aria-expanded="false" aria-controls="collapseExample" class="alert-link">Show details</a>
       </div>
-      <table class="table table-hover">
-        <thead>
-          <tr>
-            <th scope="col">Form Name</th>
-            <th scope="col">Vulnerability</th>
-            <th scope="col">Payload Used</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for vulnerability in page.sqli %}
-          <tr>
-            <td>{{vulnerability["form"]}}</td>
-            <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["payload"]|e}}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="alert alert-success" role="alert">
-      No SQL Injection Detected on this page.
-    </div>
-  </div>
-    {% endif %} 
-    
-    <div class="container">
+      <div class="collapse" id="SQLITable{{loop.index}}">
+        <div class="container">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th scope="col">Form Name</th>
+                <th scope="col">Vulnerability</th>
+                <th scope="col">Payload Used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for vulnerability in page.sqli %}
+              <tr>
+                <td>{{vulnerability["form"]}}</td>
+                <td>{{vulnerability["vulnerability"]}}</td>
+                <td>{{vulnerability["payload"]|e}}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert-success my-2 mt-4 mx-3" role="alert">
+        No SQL Injection detected on this page.
+      </div>
+      {% endif %}
+
       {% if page.xss %}
-      <div class="alert alert-danger" role="alert">
-        Cross-Site Scripting Detected on this page.
+      <div class="alert alert-danger my-2 mx-3" role="alert">
+        Cross-Site Scripting detected on this page. <a data-toggle="collapse" href="#XSSTable{{loop.index}}"
+          aria-expanded="false" aria-controls="collapseExample" class="alert-link">Show details</a>
       </div>
-      <table class="table table-hover">
-        <thead>
-          <tr>
-            <th scope="col">Form Name</th>
-            <th scope="col">Vulnerability</th>
-            <th scope="col">Payload Used</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for vulnerability in page.xss %}
-          <tr>
-            <td>{{vulnerability["form"]}}</td>
-            <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["payload"]|e}}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="alert alert-success" role="alert">
-      No Cross-Site Scripting Detected on this page.
-    </div>
-  </div>
-    {% endif %} 
+      <div class="collapse" id="XSSTable{{loop.index}}">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th scope="col">Form Name</th>
+              <th scope="col">Vulnerability</th>
+              <th scope="col">Payload Used</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vulnerability in page.xss %}
+            <tr>
+              <td>{{vulnerability["form"]}}</td>
+              <td>{{vulnerability["vulnerability"]}}</td>
+              <td>{{vulnerability["payload"]|e}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-success my-2 mx-3" role="alert">
+        No Cross-Site Scripting detected on this page.
+      </div>
+      {% endif %}
 
-    <div class="container">
       {% if page.ci %}
-      <div class="alert alert-danger" role="alert">
-        Command Injection Detected on this page.
+      <div class="alert alert-danger my-2 mx-3" role="alert">
+        Command Injection detected on this page. <a data-toggle="collapse" href="#CITable{{loop.index}}"
+          aria-expanded="false" aria-controls="collapseExample" class="alert-link">Show details</a>
       </div>
-      <table class="table table-hover">
-        <thead>
-          <tr>
-            <th scope="col">Form Name</th>
-            <th scope="col">Vulnerability</th>
-            <th scope="col">Payload Used</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for vulnerability in page.ci %}
-          <tr>
-            <td>{{vulnerability["form"]}}</td>
-            <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["payload"]|e}}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="alert alert-success" role="alert">
-      No Command Injection vulnerability Detected on this page.
-    </div>
-  </div>
-    {% endif %} 
+      <div class="collapse" id="CITable{{loop.index}}">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th scope="col">Form Name</th>
+              <th scope="col">Vulnerability</th>
+              <th scope="col">Payload Used</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vulnerability in page.ci %}
+            <tr>
+              <td>{{vulnerability["form"]}}</td>
+              <td>{{vulnerability["vulnerability"]}}</td>
+              <td>{{vulnerability["payload"]|e}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-success my-2 mx-3" role="alert">
+        No Command Injection vulnerability detected on this page.
+      </div>
+      {% endif %}
 
-    <div class="container">
       {% if page.data %}
-      <div class="alert alert-warning" role="alert">
-        Potential Exposure of Sensitive Data Detected on this page
+      <div class="alert alert-danger my-2 mb-4 mx-3" role="alert">
+        Potential sensitive data exposure detected on this page. <a data-toggle="collapse" href="#DataTable{{loop.index}}"
+          aria-expanded="false" aria-controls="collapseExample" class="alert-link">Show details</a>
       </div>
-      <table class="table table-hover">
-        <thead>
-          <tr>
-            <th scope="col">Data Type</th>
-            <th scope="col">Data</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for vulnerability in page.data %}
-          <tr>
-            <td>{{vulnerability["vulnerability"]}}</td>
-            <td>{{vulnerability["data"]}}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <hr>
+      <div class="collapse" id="DataTable{{loop.index}}">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th scope="col">Data Type</th>
+              <th scope="col">Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vulnerability in page.data %}
+            <tr>
+              <td>{{vulnerability["vulnerability"]}}</td>
+              <td>{{vulnerability["data"]}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <hr>
+      </div>
+      {% else %}
+      <div class="alert alert-success my-2 mb-4 mx-3" role="alert">
+        No Sensitive Data detected on this page.
+      </div>
+      {% endif %}
     </div>
-    {% else %}
-    <div class="alert alert-success" role="alert">
-      No Sensitive Data Detected on this page.
-    </div>
-    <hr>
   </div>
-    {% endif %}
-    {% endfor %}
-  </body>
+  {% endfor %}
+</body>
+
 </html>

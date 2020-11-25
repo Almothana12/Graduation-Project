@@ -11,6 +11,11 @@ log = logging.getLogger(__name__)
 # detected vulnerabilities in that webpage.
 pages = []
 
+start_time = 0
+finish_time = 0
+
+vuln_count = 0
+pages_count = 0
 
 class Page:
 
@@ -52,6 +57,8 @@ def add_vulnerability(vulnerability, url, *args, **kwargs):
         vulnerability (str): The name of the vulnerability.
         url (str): The URL in which the vulnerability was detected in.
     """
+    global vuln_count
+    vuln_count += 1
     # A dictionary that contains data about the vulnerability.
     dict = {"vulnerability": vulnerability}
     # Add the given data to the dictionary.
@@ -77,20 +84,27 @@ def generate_report():
         logging.error("Cannot generate report. No vulnerabilities found.")
         return
 
+    global vuln_count
+
     env = Environment(loader=FileSystemLoader('./report/'))
     template = env.get_template("template.html")
 
+    total_time = finish_time - start_time
+    info = {"Start Time": start_time, "Finish Time": finish_time, "Total Time": total_time, "Vulnerabilities Found": vuln_count, "Pages Scanned": pages_count, "URL": "http://dvwa-win10"}
     # Add the pages list to the template.
-    template_vars = {"pages": pages}
+    template_vars = {"pages": pages, "info": info}
     html_out = template.render(template_vars)
 
     # Write the generated HTML to file.
-    report = open("report.html", "w")
+    report = open("report/report.html", "w")
     report.write(html_out)
     report.close()
 
 
 if __name__ == "__main__":
+    from datetime import datetime
+    start_time = datetime(2020,1,2,13,43,20)
+    finish_time = datetime(2020,1,2,14,44,32)
     add_vulnerability("SQLI", "example.com/signup", form="form", payload="pappsd")
     add_vulnerability("SQLI", "example.com/home", form="form", payload="pappsd")
     add_vulnerability("XSS", "example.com/home", form="form", payload="pappsd")
