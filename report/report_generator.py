@@ -17,6 +17,8 @@ finish_time = 0
 vuln_count = 0
 pages_count = 0
 
+url = ""
+
 class Page:
 
     def __init__(self, url, dict):
@@ -34,7 +36,7 @@ class Page:
             dict (dict): A dictionary containing data about the vulnerability.
         """
         vuln = dict["vulnerability"]
-        if "SQLI" in vuln:
+        if "SQLi" in vuln:
             # Add the vulnerabiltiy to the SQLi list.
             self.sqli.append(dict)
         elif "XSS" in vuln:
@@ -82,7 +84,7 @@ def generate_report():
     """Generate an HTML report of all the detected vulnerabilities."""
     if not pages:
         logging.error("Cannot generate report. No vulnerabilities found.")
-        return
+        return False
 
     global vuln_count
 
@@ -90,7 +92,7 @@ def generate_report():
     template = env.get_template("template.html")
 
     total_time = finish_time - start_time
-    info = {"Start Time": start_time, "Finish Time": finish_time, "Total Time": total_time, "Vulnerabilities Found": vuln_count, "Pages Scanned": pages_count, "URL": "http://dvwa-win10"}
+    info = {"Start Time": start_time, "Finish Time": finish_time, "Total Time": total_time, "Vulnerabilities Found": vuln_count, "Pages Scanned": pages_count, "URL": url}
     # Add the pages list to the template.
     template_vars = {"pages": pages, "info": info}
     html_out = template.render(template_vars)
@@ -99,15 +101,25 @@ def generate_report():
     report = open("report/report.html", "w")
     report.write(html_out)
     report.close()
+    return True
 
 
 if __name__ == "__main__":
     from datetime import datetime
     start_time = datetime(2020,1,2,13,43,20)
-    finish_time = datetime(2020,1,2,14,44,32)
-    add_vulnerability("SQLI", "example.com/signup", form="form", payload="pappsd")
-    add_vulnerability("SQLI", "example.com/home", form="form", payload="pappsd")
-    add_vulnerability("XSS", "example.com/home", form="form", payload="pappsd")
+    finish_time = datetime(2020,1,2,13,48,32)
+    pages_count = 3
+    url = "http://example.com"
+    add_vulnerability("SQLi", "example.com/home", form="login", payload="' OR '1")
+    add_vulnerability("SQLi", "example.com/home", form="search", payload="'")
+    add_vulnerability("SQLi", "example.com/home", form="None", payload="'")
     add_vulnerability("XSS", "example.com/home", form="form", payload="papfdasfpsd")
+    add_vulnerability("SQLi", "example.com/signup", form="form", payload="pappsd")
+    add_vulnerability("SQLi", "example.com/signup", form="form", payload="pappsd")
+    add_vulnerability("SQLi", "example.com/signup", form="form", payload="pappsd")
+    add_vulnerability("CI", "example.com/signup", form="form", payload="pappsd")
+
+    add_vulnerability("Time-Based SQLi", "example.com/signup", form="form", payload="payload")
+    add_vulnerability("Time-Based SQLi", "example.com/signup", form="signup", payload="payload")
 
     generate_report()
