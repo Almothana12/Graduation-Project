@@ -6,6 +6,7 @@ from threading import Thread
 import requests
 from PyQt5 import QtCore as qtc
 from PyQt5 import QtWidgets as qtw
+from PyQt5 import QtGui as qtg
 
 import command_injection
 import data
@@ -27,19 +28,30 @@ class ThreadSignal(qtc.QObject):
 
 
 class QTextEditLogger(logging.Handler, qtc.QObject):
-    appendPlainText = qtc.pyqtSignal(str)
+    appendText = qtc.pyqtSignal(str)
 
     def __init__(self, parent):
         super().__init__()
         qtc.QObject.__init__(self)
-        self.widget = qtw.QPlainTextEdit(parent)
+        self.widget = qtw.QTextEdit(parent)
+        # self.widget = qtw.QTextBrowser(parent)
         self.widget.setReadOnly(True)
-        self.appendPlainText.connect(self.widget.appendPlainText)
+        self.widget.setStyleSheet("border-width: 1;border-radius: 3;border-style: solid;")
+        self.appendText.connect(self.widget.append)
         self.setLevel("INFO")
 
     def emit(self, record):
         msg = self.format(record)
-        self.appendPlainText.emit(msg)
+        # Esacpe HTML
+        msg = msg.replace("<", "&lt;")
+        msg = msg.replace(">", "&gt;")
+        # Color the message depending on log level
+        if "[WARNING]" in msg:
+            msg = '<span style="color: #e68a00">' + msg + "</span>"
+        if "[ERROR]" in msg or "[CRITICAL]" in msg:
+            msg = '<span style="color: #cc0000">' + msg + "</span>"
+        # Write the message to the text box
+        self.appendText.emit(msg)
 
 
 class MainWindow(qtw.QMainWindow, Ui_MainWindow):
@@ -49,10 +61,19 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
 
-        self.scanButton.clicked.connect(self.quickscan)
+        self.scanButton.clicked.connect(self.prepare_scan)
         self.UrlError.connect(self.errorPopup)
+        # Connect checkboxes and radio buttons to show/hide scan options
+        self.customScanRadioButton.clicked.connect(self.toggle_checkboxes)
+        self.qucikScanRadioButton.clicked.connect(self.toggle_checkboxes)
+        self.fullScanRadioButton.clicked.connect(self.toggle_checkboxes)
+        self.sqliCheckBox.clicked.connect(self.toggle_checkboxes)
+        self.xssCheckBox.clicked.connect(self.toggle_checkboxes)
+        self.ciCheckBox.clicked.connect(self.toggle_checkboxes)
+
         # Initialize the log box
         self.logTextBox = QTextEditLogger(self)
+        self.logTextBox.widget.setStyleSheet("border: 10;")
         self.logTextBox.widget.setVisible(False)
         # Set the log format of the box
         self.logTextBox.setFormatter(
@@ -62,9 +83,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Add the text box widget to the predefined layout
         self.logLayout.addWidget(self.logTextBox.widget)
         # self.urlLineEdit.setText("http://dvwa-ubuntu/vulnerabilities/sqli/")
-        self.urlLineEdit.setText("http://dvwa-win10")
+        self.urlLineEdit.setText("http://dvwa-win10/vulnerabilities/xss_r/")
         # self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
-        self.cookieLineEdit.setText("PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
+        self.cookieLineEdit.setText(
+            "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
 
         self.alive_thread_count = 0
         self.max_thread_count = 0
@@ -73,12 +95,15 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.thread_signal = ThreadSignal()
         self.thread_signal.finished.connect(self.thread_finished)
         self.progressBar.setHidden(True)
+        self.toggle_checkboxes()
 
     def errorPopup(self, text):
         qtw.QMessageBox.critical(self, 'Error', text)
 
-
-    def quickscan(self):
+    def prepare_scan(self):
+        """This function is called before scanning. 
+        Prepare for scanning and then start the scan thread
+        """
         if self.scanButton.text() == "Stop" or self.scanButton.text() == "Stopping...":
             # Abort scanning. Stop the threads
             self.scanButton.setText("Stopping...")
@@ -92,10 +117,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         report_generator.vuln_count = 0
         # Get the datetime without microseconds
         report_generator.start_time = datetime.now().replace(microsecond=0)
-        
+
         # Clear the log text box
         self.logTextBox.widget.clear()
-        # Change the text of the button to Stop
+        # Change the text of the button to "Stop"
         self.scanButton.setText("Stop")
         # The total number of threads
         self.max_thread_count = 0
@@ -111,23 +136,33 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Make the progress bar in loading state
         self.progressBar.setMaximum(0)
 
-        scan = Thread(target=self.scan, args=(False,))
+        # Start the scan thread
+        scan = Thread(target=self.scan)
         scan.start()
 
-
-    def scan(self, fullscan):
-        # get what the user entered
+    def scan(self):
+        # Get what the entered URL and the cookie
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
-        check_xss = self.xssCheckBox.isChecked()
-        check_sqli = self.sqliCheckBox.isChecked()
-        check_ci = self.ciCheckBox.isChecked()
-        check_version = self.versionCheckBox.isChecked()
-        check_data = self.dataCheckBox.isChecked()
-        crawl = self.allPages_radioButton.isChecked()
-        # Check DOM and time-based if full scan
-        check_time_based = fullscan
-        check_dom_based = fullscan
+
+        # Check if quick scan or full scan is selected
+        fullscan = self.fullScanRadioButton.isChecked()
+        quickscan = self.qucikScanRadioButton.isChecked()
+
+        # Check for these if quick scan, full scan, or the checkbox is checked
+        check_xss = quickscan or fullscan or self.xssCheckBox.isChecked()
+        check_sqli = quickscan or fullscan or self.sqliCheckBox.isChecked()
+        check_ci = quickscan or fullscan or self.ciCheckBox.isChecked()
+        check_version = quickscan or fullscan or self.versionCheckBox.isChecked()
+        check_data = quickscan or fullscan or self.dataCheckBox.isChecked()
+
+        # Check whether to check for all pages
+        crawl = self.allPagesRadioButton.isChecked()
+
+        # Check DOM and time-based if full scan or selected
+        check_sql_time = fullscan or self.sqlTimeCheckBox.isChecked()
+        check_ci_time = fullscan or self.ciTimeCheckBox.isChecked()
+        check_dom_based = fullscan or self.domCheckBox.isChecked()
 
         # Check if there is a URL and is valid
         if url:
@@ -139,7 +174,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 session.headers['Cookie'] = cookie
             # Check that the URL is valid and reachable
             if not valid_url(url, session):
-                self.UrlError.emit(f"Could not connect to {url} \nURL not valid or unreachable")
+                self.UrlError.emit(
+                    f"Could not connect to {url} \nURL not valid or unreachable")
                 self.scanButton.setText("Scan")
                 self.progressBar.setVisible(False)
                 return
@@ -156,7 +192,6 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             urls = get_all_links(session, url)
             report_generator.pages_count = len(urls)
             if len(urls) > 1:
-                pass
                 logging.info(f"Scanning {len(urls)} pages")
         else:
             # Scan only one URL
@@ -171,7 +206,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             versions_thread.start()
         # Start the progress bar
         self.progressBar.setMaximum(100)
-        # For each page start threads to check for vulnerabilities
+        # For each page start threads to check for selcted vulnerabilities
         for url in urls:
             if check_data:
                 data_thread = Thread(
@@ -181,7 +216,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 data_thread.start()
             if check_sqli:
                 sqli_thread = Thread(target=sqli.check, args=(
-                    session, url, check_time_based, fullscan, self.thread_signal, lambda: self.stop_threads))
+                    session, url, check_sql_time, fullscan, self.thread_signal, lambda: self.stop_threads))
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 sqli_thread.start()
@@ -193,11 +228,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 xss_thread.start()
             if check_ci:
                 ci_thread = Thread(target=command_injection.check, args=(
-                    session, url, check_time_based, self.thread_signal, lambda: self.stop_threads))
+                    session, url, check_ci_time, self.thread_signal, lambda: self.stop_threads))
                 self.max_thread_count += 1
                 self.alive_thread_count += 1
                 ci_thread.start()
-
 
     def thread_finished(self):
         # A thread is finished
@@ -215,7 +249,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 self.scan_complete()
             else:
                 # The threads was stopped by the user
-                # Return the progress bar to normal. 
+                # Return the progress bar to normal.
                 self.progressBar.setMaximum(100)
                 # Show a popup
                 qtw.QMessageBox.information(
@@ -233,7 +267,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         msg.setText("Scan completed successfully.")
         msg.setInformativeText("Do you want to generate an HTML report?")
         msg.setIcon(qtw.QMessageBox.Information)
-        msg.addButton(qtw.QPushButton("Generate Report"), qtw.QMessageBox.ActionRole)
+        msg.addButton(qtw.QPushButton("Generate Report"),
+                      qtw.QMessageBox.ActionRole)
         msg.setStandardButtons(qtw.QMessageBox.Ok)
         msg.setDefaultButton(qtw.QMessageBox.Ok)
         msg.setDetailedText("DETAILS")
@@ -248,6 +283,44 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         elif button_clicked == "Generate Report":
             report_generator.generate_report()
 
+    def toggle_checkboxes(self):
+        """Shows scan options when the custom scan radio button is selected. Hides them otherwise"""
+        show = False
+        if self.customScanRadioButton.isChecked():
+            show = True
+
+        # Show/Hide SQLi Checkboxes
+        self.sqliCheckBox.setVisible(show)
+        self.sqlTimeCheckBox.setVisible(show)
+        # If the checkbox is not checked, disable the time-based checkbox
+        if not self.sqliCheckBox.isChecked():
+            self.sqlTimeCheckBox.setDisabled(True)
+        else:
+            self.sqlTimeCheckBox.setDisabled(False)
+
+        # Show/Hide XSS Checkboxes
+        self.xssCheckBox.setVisible(show)
+        self.domCheckBox.setVisible(show)
+        # If the checkbox is not checked, disable the DOM-based checkbox
+        if not self.xssCheckBox.isChecked():
+            self.domCheckBox.setDisabled(True)
+        else:
+            self.domCheckBox.setDisabled(False)
+
+        # Show/Hide CI Checkboxes
+        self.ciCheckBox.setVisible(show)
+        self.ciTimeCheckBox.setVisible(show)
+        # If the checkbox is not checked, disable the time-based checkbox
+        if not self.ciCheckBox.isChecked():
+            self.ciTimeCheckBox.setDisabled(True)
+        else:
+            self.ciTimeCheckBox.setDisabled(False)
+
+        # Show/Hide data and version Checkboxes
+        self.dataCheckBox.setVisible(show)
+        self.versionCheckBox.setVisible(show)
+
+
 def run():
     app = qtw.QApplication(sys.argv)
     window = MainWindow()
@@ -256,7 +329,7 @@ def run():
 
 
 if __name__ == "__main__":
-        # Enable log messages in terminal
+    # Enable log messages in terminal
     logging.basicConfig(
         level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
     run()
