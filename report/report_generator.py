@@ -5,11 +5,14 @@ from jinja2 import Environment, FileSystemLoader
 
 log = logging.getLogger(__name__)
 
-# List holds Page objects.
+# List holds objects of Page class.
 # Each object represents a webpage.
 # Each object contains the URL of the webpage and lists of the
 # detected vulnerabilities in that webpage.
 pages = []
+
+# A dictionary containing each detected server version
+versions = []
 
 start_time = 0
 finish_time = 0
@@ -50,6 +53,9 @@ class Page:
             self.data.append(dict)
         else:
             logging.debug(f'Unkonw vulnerability: {dict["vulnerability"]}')
+
+def add_server_version(name, version, outdated):
+    versions.append({"name":name, "version":version, "outdated":outdated})
 
 
 def add_vulnerability(vulnerability, url, *args, **kwargs):
@@ -92,9 +98,9 @@ def generate_report():
     template = env.get_template("template.html")
 
     total_time = finish_time - start_time
-    info = {"Start Time": start_time, "Finish Time": finish_time, "Total Time": total_time, "Vulnerabilities Found": vuln_count, "Pages Scanned": pages_count, "URL": url}
+    info = {"Start Time": start_time, "Finish Time": finish_time, "Total Time": total_time, "Vulnerabilities Found": vuln_count, "Pages Scanned": pages_count}
     # Add the pages list to the template.
-    template_vars = {"pages": pages, "info": info}
+    template_vars = {"pages": pages, "info": info, "versions":versions, "URL":url}
     html_out = template.render(template_vars)
 
     # Write the generated HTML to file.
@@ -121,5 +127,9 @@ if __name__ == "__main__":
 
     add_vulnerability("Time-Based SQLi", "example.com/signup", form="form", payload="payload")
     add_vulnerability("Time-Based SQLi", "example.com/signup", form="signup", payload="payload")
+
+    add_server_version("Apache", 2.3, True)
+    add_server_version("PHP", 5.3, True)
+    add_server_version("Apache", 2.4, False)
 
     generate_report()

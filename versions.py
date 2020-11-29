@@ -4,12 +4,13 @@ import re
 import requests
 from colorama import Back, Fore, Style, init
 from packaging.version import parse as parse_version
+import report.report_generator as report_generator
 
 init()  # Initialise Colorama
 
 log = logging.getLogger(__name__)
 
-# A dict containing the lastest supported version of each program
+# A dict containing the oldest still supported version of each software
 versions = {
     "Apache": parse_version("2.4"),   # https://www.rapid7.com/db/vulnerabilities/apache-httpd-obsolete
     "PHP": parse_version("7.3"),      # https://www.php.net/supported-versions.php
@@ -90,8 +91,11 @@ def check(session, url, sig=None, stop=None, color=True) -> None:
                     log.warning(f"{name} version: {server_version}  {Fore.RED}(outdated){Style.RESET_ALL}")
                 else:
                     log.warning(f"{name} version: {server_version}  is outdated")
+                report_generator.add_server_version(name, server_version, outdated=True)
+                
             else:
                 log.info(f"{name} version: {server_version}")
+                report_generator.add_server_version(name, server_version, outdated=False)
     if version_found:
         log.warning("A server version is found on the HTTP response header. Attackers could use this information for malicious reasons")
     else:

@@ -9,23 +9,56 @@
   <script src="js/jquery-1.11.0.min.js"></script>
   <script src="js/bootstrap.js"></script>
 
-  <title>WS2T Report</title>
+  <title>WSTT Report</title>
 </head>
 
 <body class="bg-light">
-  <br>
+  <div class="container text-center">
+    <div class="card mb-5 mt-5">
+      <div class="card-header"><b>URL</b></div>
+      <div class="card-body">
+        <h2><b>{{URL}}</b></h2>
+      </div>
+    </div>
+  </div>
   <div class="container text-center">
     <div class="card mb-5">
       <div class="card-header"><b>Scan Results</b></div>
       <div class="card-columns pt-4 px-3">
         {% for title in info %}
-        <div class="card text-white bg-dark mb-4 text-center">
-          <div class="card-header"><b>{{title}}</b></div>
-          <div class="card-body text-warning">
-            <h3 class="card-title"><b>{{info[title]}}</b></h3>
+          <div class="card text-white bg-dark mb-4 text-center">
+            <div class="card-header"><b>{{title}}</b></div>
+            <div class="card-body text-warning">
+              <h3><b>{{info[title]}}</b></h3>
+            </div>
           </div>
-        </div>
         {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="card mb-5">
+      <div class="card-header text-center"><b>Server Versions</b></div>
+      <div class="card-body">
+          {% if versions %}
+            <div class="alert alert-danger" role="alert">
+              A server version is found on the HTTP response header. 
+              Attackers could use this information for to create or look for attacks specific to this version.
+            </div>
+            <p>
+            {% for version in versions %}
+              <b>{{version["name"]}}:</b> {{version["version"]}}
+              {% if version["outdated"] %}
+                <span class="text-danger">(outdated)</span>
+              {% endif %}
+              <br>
+            {% endfor%}
+            </p>
+          {% else %}
+            <div class="alert alert-success" role="alert">
+              No versions detected in server headers.
+            </div>
+          {% endif %}
       </div>
     </div>
   </div>
@@ -66,9 +99,9 @@
         </div>
       </div>
       {% else %}
-      <div class="alert alert-success my-2 mt-4 mx-3" role="alert">
-        No SQL Injection detected on this page.
-      </div>
+        <div class="alert alert-success my-2 mt-4 mx-3" role="alert">
+          No SQL Injection detected on this page.
+        </div>
       {% endif %}
 
       {% if page.xss %}
