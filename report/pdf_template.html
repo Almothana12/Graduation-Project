@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+<head lang="en">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+  <link rel="stylesheet" href="css/bootstrap.css" />
+
+  <title>WSTT Report</title>
+</head>
+
+<body>
+  <div class="container text-center">
+    <div class="card mb-5 mt-5">
+      <div class="card-header"><b>URL</b></div>
+      <div class="card-body">
+        <h2><b>{{URL}}</b></h2>
+      </div>
+    </div>
+  </div>
+  <div class="container text-center">
+    <div class="card mb-5">
+      <div class="card-header"><b>Scan Results</b></div>
+      <div class="card-columns pt-4 px-3">
+        {% for title in info %}
+          <div class="card text-white bg-dark mb-4 text-center">
+            <div class="card-header"><b>{{title}}</b></div>
+            <div class="card-body text-warning">
+              <h3><b>{{info[title]}}</b></h3>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="card mb-5">
+      <div class="card-header text-center"><b>Server Versions</b></div>
+      <div class="card-body">
+          {% if versions %}
+            <div class="alert alert-danger" role="alert">
+              A server version is found on the HTTP response header. 
+              Attackers could use this information for to create or look for attacks specific to this version.
+            </div>
+            <p>
+            {% for version in versions %}
+              <b>{{version["name"]}}:</b> {{version["version"]}}
+              {% if version["outdated"] %}
+                <span class="text-danger">(outdated)</span>
+              {% endif %}
+              <br>
+            {% endfor%}
+            </p>
+          {% else %}
+            <div class="alert alert-success" role="alert">
+              No versions detected in server headers.
+            </div>
+          {% endif %}
+      </div>
+    </div>
+  </div>
+  {% for page in pages %}
+  <div class="container">
+    <div class="card mb-5">
+      <div class="card-header">
+        <h3 class="text-dark"><b>{{page.url}}:</b></h3>
+      </div>
+      {% if page.sqli %}
+      <div class="alert alert-danger my-2 mt-4 mx-3" role="alert">
+        SQL Injection detected on this page.
+      </div>
+        <div class="container">
+          <p>SQL Injection attacks happen when a user can type malicious SQL statements into the website and get unauthorized access to data in the database.
+            This could mean that an attacker can gain access to other user's emails and passwords and gain unauthorized access. <a href="https://owasp.org/www-community/attacks/SQL_Injection">More Information</a>
+          </p>
+          <table class="table table-hover table-sm table-striped table-bordered text-center">
+            <thead class="thead-light">
+              <tr>
+                <th scope="col">Form Name</th>
+                <th scope="col">Vulnerability</th>
+                <th scope="col">Payload Used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for vulnerability in page.sqli %}
+              <tr>
+                <td>{{vulnerability["form"]}}</td>
+                <td>{{vulnerability["vulnerability"]}}</td>
+                <td>{{vulnerability["payload"]|e}}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-success my-2 mt-4 mx-3" role="alert">
+          No SQL Injection detected on this page.
+        </div>
+      {% endif %}
+
+      {% if page.xss %}
+      <div class="alert alert-danger my-2 mx-3" role="alert">
+        Cross-Site Scripting detected on this page.
+      </div>
+        <div class="container">
+          <p>Cross-Site Scripting attacks enable attackers to inject JavaScript into web pages viewed by other users. 
+            For example, an attacker could inject some JavaScript statements into a vulnerable web blog by writing a comment in a blog post that contains JavaScript statements.
+            This could lead to the attacker stealing the session of any user that enters that page or redirecting them to a malicious website. <a href="https://owasp.org/www-community/attacks/xss">More Information</a>
+          </p>
+        <table class="table table-hover table-sm table-striped table-bordered text-center">
+          <thead class="thead-light">
+            <tr>
+              <th scope="col">Form Name</th>
+              <th scope="col">Vulnerability</th>
+              <th scope="col">Payload Used</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vulnerability in page.xss %}
+            <tr>
+              <td>{{vulnerability["form"]}}</td>
+              <td>{{vulnerability["vulnerability"]}}</td>
+              <td>{{vulnerability["payload"]|e}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-success my-2 mx-3" role="alert">
+        No Cross-Site Scripting detected on this page.
+      </div>
+      {% endif %}
+
+      {% if page.ci %}
+      <div class="alert alert-danger my-2 mx-3" role="alert">
+        Command Injection detected on this page.
+      </div>
+        <div class="container">
+          <p>Command injection is an attack in which the goal is execution of arbitrary commands on the host operating system via a vulnerable application. 
+            This could mean that an attacker can run shell commands on the webserver to gain unauthorized access or other malicious intentes. <a href="https://owasp.org/www-community/attacks/Command_Injection">More Information</a>
+          </p>
+        <table class="table table-hover table-sm table-striped table-bordered text-center">
+          <thead class="thead-light">
+            <tr>
+              <th scope="col">Form Name</th>
+              <th scope="col">Vulnerability</th>
+              <th scope="col">Payload Used</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vulnerability in page.ci %}
+            <tr>
+              <td>{{vulnerability["form"]}}</td>
+              <td>{{vulnerability["vulnerability"]}}</td>
+              <td>{{vulnerability["payload"]|e}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+      <div class="alert alert-success my-2 mx-3" role="alert">
+        No Command Injection vulnerability detected on this page.
+      </div>
+      {% endif %}
+
+      {% if page.data %}
+      <div class="alert alert-danger my-2 mb-4 mx-3" role="alert">
+        Potential private data exposure detected on this page.
+      </div>
+      <div class="collapse" id="DataTable{{loop.index}}">
+        <div class="container">
+          <p>Exposing private data like phone numbers and email addresses in websites can lead to having this information to be misused by automated spam bots and attackers. 
+            To avoid this, remove the sensitive data or make sure it is behind some kind of barrier that bots cannot access (e.g. CAPTCHA).
+          </p>
+        <table class="table table-hover table-sm table-striped table-bordered text-center">
+          <thead class="thead-light">
+            <tr>
+              <th scope="col">Data Type</th>
+              <th scope="col">Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for vulnerability in page.data %}
+            <tr>
+              <td>{{vulnerability["vulnerability"]}}</td>
+              <td>{{vulnerability["data"]}}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+      <div class="alert alert-success my-2 mb-4 mx-3" role="alert">
+        No private data detected on this page.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</body>
+
+</html>

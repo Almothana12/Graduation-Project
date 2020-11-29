@@ -1,7 +1,8 @@
 import logging
+from os import remove
 
+import pdfkit
 from jinja2 import Environment, FileSystemLoader
-
 
 log = logging.getLogger(__name__)
 
@@ -86,8 +87,8 @@ def add_vulnerability(vulnerability, url, *args, **kwargs):
         pages.append(Page(url, dict))
 
 
-def generate_report():
-    """Generate an HTML report of all the detected vulnerabilities."""
+def generate_report(pdf=False):
+    """Generate an HTML or PDF report of all the detected vulnerabilities."""
     if not pages:
         logging.error("Cannot generate report. No vulnerabilities found.")
         return False
@@ -95,7 +96,12 @@ def generate_report():
     global vuln_count
 
     env = Environment(loader=FileSystemLoader('./report/'))
-    template = env.get_template("template.html")
+    if pdf:
+        # Use the template designed for PDF
+        template = env.get_template("pdf_template.html")
+    else:
+        # Use the normal template
+        template = env.get_template("template.html")
 
     total_time = finish_time - start_time
     info = {"Start Time": start_time, "Finish Time": finish_time, "Total Time": total_time, "Vulnerabilities Found": vuln_count, "Pages Scanned": pages_count}
@@ -103,10 +109,18 @@ def generate_report():
     template_vars = {"pages": pages, "info": info, "versions":versions, "URL":url}
     html_out = template.render(template_vars)
 
+    filename = "" # TODO 
+
     # Write the generated HTML to file.
     report = open("report/report.html", "w")
     report.write(html_out)
     report.close()
+    if pdf:
+        # Convert the HTML file to PDF
+        options = {"enable-local-file-access": None, 'quiet': ''}
+        pdfkit.from_file("report/report.html", "report/report.pdf", options=options)
+        # Remove the HTML file
+        remove("report/report.html")
     return True
 
 
@@ -132,4 +146,4 @@ if __name__ == "__main__":
     add_server_version("PHP", 5.3, True)
     add_server_version("Apache", 2.4, False)
 
-    generate_report()
+    generate_report(pdf=True)
