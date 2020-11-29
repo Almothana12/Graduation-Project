@@ -88,10 +88,11 @@ def add_vulnerability(vulnerability, url, *args, **kwargs):
 
 
 def generate_report(pdf=False):
-    """Generate an HTML or PDF report of all the detected vulnerabilities."""
+    """Generate an HTML or PDF report of all the detected vulnerabilities.
+    Returns the path to the generated report."""
     if not pages:
         logging.error("Cannot generate report. No vulnerabilities found.")
-        return False
+        return None
 
     global vuln_count
 
@@ -121,7 +122,9 @@ def generate_report(pdf=False):
         pdfkit.from_file("report/report.html", "report/report.pdf", options=options)
         # Remove the HTML file
         remove("report/report.html")
-    return True
+        return "report/report.pdf"
+    else:
+        return "report/report.html"
 
 
 if __name__ == "__main__":

@@ -1,12 +1,15 @@
 import logging
+import os
+import subprocess
 import sys
 from datetime import datetime
+from platform import system
 from threading import Thread
 
 import requests
 from PyQt5 import QtCore as qtc
-from PyQt5 import QtWidgets as qtw
 from PyQt5 import QtGui as qtg
+from PyQt5 import QtWidgets as qtw
 
 import command_injection
 import data
@@ -17,6 +20,8 @@ from report import report_generator
 from ui.ui_form import Ui_MainWindow
 from utils.crawler import get_all_links
 from utils.url_vaildator import valid_url
+
+log = logging.getLogger(__name__)
 
 session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
@@ -34,9 +39,7 @@ class QTextEditLogger(logging.Handler, qtc.QObject):
         super().__init__()
         qtc.QObject.__init__(self)
         self.widget = qtw.QTextEdit(parent)
-        # self.widget = qtw.QTextBrowser(parent)
         self.widget.setReadOnly(True)
-        self.widget.setStyleSheet("border-width: 1;border-radius: 3;border-style: solid;")
         self.appendText.connect(self.widget.append)
         self.setLevel("INFO")
 
@@ -72,8 +75,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.ciCheckBox.clicked.connect(self.toggle_checkboxes)
 
         # Initialize the log box
+        
         self.logTextBox = QTextEditLogger(self)
-        self.logTextBox.widget.setStyleSheet("border: 10;")
         self.logTextBox.widget.setVisible(False)
         # Set the log format of the box
         self.logTextBox.setFormatter(
@@ -88,12 +91,15 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.cookieLineEdit.setText(
             "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
 
+        # Initialized variables
         self.alive_thread_count = 0
         self.max_thread_count = 0
         self.stop_threads = False
         self.threads = []
+        # Signal for each thread. Will emit after thread finished
         self.thread_signal = ThreadSignal()
         self.thread_signal.finished.connect(self.thread_finished)
+        # Hide the progress bar and the scan options
         self.progressBar.setHidden(True)
         self.toggle_checkboxes()
 
@@ -114,6 +120,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
 
         # Initializing variables for report generation
         report_generator.pages = []
+        report_generator.versions = []
         report_generator.vuln_count = 0
         # Get the datetime without microseconds
         report_generator.start_time = datetime.now().replace(microsecond=0)
@@ -169,6 +176,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             # if the URL doesn't start with http:// or https://, add http:// to the begining to the URL
             if not url.startswith(("http://", "https://")):
                 url = "http://" + url
+            # Add the URL to the report
+            report_generator.url = url
             # Add the cookie to the session if it exists
             if cookie:
                 session.headers['Cookie'] = cookie
@@ -192,7 +201,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             urls = get_all_links(session, url)
             report_generator.pages_count = len(urls)
             if len(urls) > 1:
-                logging.info(f"Scanning {len(urls)} pages")
+                log.info(f"Scanning {len(urls)} pages")
         else:
             # Scan only one URL
             urls.append(url)
@@ -234,6 +243,9 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 ci_thread.start()
 
     def thread_finished(self):
+        """This will be called each time a thread is finished.
+        Updates the progress bar and if all threads finished it will show a popup
+        """
         # A thread is finished
         self.alive_thread_count -= 1
         if self.alive_thread_count == 0:
@@ -242,7 +254,9 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             self.progressBar.setValue(100)
             # close the requests session
             session.close()
+            # Close the browser
             xss.quit()
+            # Record the finish time
             report_generator.finish_time = datetime.now().replace(microsecond=0)
             if self.scanButton.text() != "Stopping...":
                 # The threads finished normally
@@ -256,32 +270,76 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                     self, 'Scan Stopped', 'Scanning Stopped successfully')
             self.scanButton.setText("Scan")
         else:
+            # There are threads that are still running
             # Update the progress bar
             finished_threads = self.max_thread_count - self.alive_thread_count
             percentage = finished_threads / self.max_thread_count * 100
             self.progressBar.setValue(int(percentage))
 
     def scan_complete(self):
-        msg = qtw.QMessageBox()
-        msg.setWindowTitle("Scan Complete")
-        msg.setText("Scan completed successfully.")
-        msg.setInformativeText("Do you want to generate an HTML report?")
-        msg.setIcon(qtw.QMessageBox.Information)
-        msg.addButton(qtw.QPushButton("Generate Report"),
-                      qtw.QMessageBox.ActionRole)
-        msg.setStandardButtons(qtw.QMessageBox.Ok)
-        msg.setDefaultButton(qtw.QMessageBox.Ok)
-        msg.setDetailedText("DETAILS")
+        """Create a popup window and prompt the user for report generation.
+        """
+        log.debug("Scan Complete")
+        msgbox = qtw.QMessageBox()
+        msgbox.setWindowTitle("Scan Complete")
+        if report_generator.vuln_count:
+            # Vulnerabilities found.
+            msgbox.setText(f"Scan completed successfully. \n{report_generator.vuln_count} vulnerabilities found.")
+            msgbox.setIcon(qtw.QMessageBox.Warning)
+        else:
+            # No vulnerabilities found.
+            msgbox.setText("Scan completed successfully. No vulnerabilities found.")
+            msgbox.setIcon(qtw.QMessageBox.Information)
+        msgbox.setInformativeText("Do you want to generate a report file?")
+        msgbox.addButton("Generate Report", qtw.QMessageBox.ActionRole)
+        msgbox.setStandardButtons(qtw.QMessageBox.Ok)
+        msgbox.setDefaultButton(qtw.QMessageBox.Ok)
+        # msgbox.setDetailedText("DETAILS")
 
-        msg.buttonClicked.connect(self.popup_button)
-        msg.exec_()
-
-    def popup_button(self, button):
-        button_clicked = button.text()
-        if button_clicked == "OK":
+        reply = msgbox.exec_()
+        if reply == qtw.QMessageBox.Ok:
             return
-        elif button_clicked == "Generate Report":
-            report_generator.generate_report()
+        else:
+            # Generate report
+            msgbox = qtw.QMessageBox()
+            msgbox.setWindowTitle("Scan Complete")
+            msgbox.setText('Do you want to generate an HTML report or a PDF report?')
+            msgbox.setIcon(qtw.QMessageBox.Question)
+            html_button = msgbox.addButton("HTML", qtw.QMessageBox.ActionRole)
+            pdf_button = msgbox.addButton("PDF", qtw.QMessageBox.ActionRole)
+            msgbox.exec_()
+            if msgbox.clickedButton() == html_button:
+                log.debug("Generating HTML report")
+                report_path = report_generator.generate_report(pdf=False)
+            elif msgbox.clickedButton() == pdf_button:
+                log.debug("Generating PDF report")
+                report_path = report_generator.generate_report(pdf=True)
+            else:
+                # Should never be reached
+                return
+            if report_path:
+                # Report has generated
+                log.debug("Report generated")
+                msgbox = qtw.QMessageBox()
+                msgbox.setIcon(qtw.QMessageBox.Information)
+                msgbox.setText("Report generated successfully.")
+                msgbox.setInformativeText("Do you want to open the report?")
+                msgbox.setWindowTitle("Report Generated")
+                msgbox.setStandardButtons(qtw.QMessageBox.Open | qtw.QMessageBox.Close)
+                reply = msgbox.exec_()
+                if reply == qtw.QMessageBox.Open:
+                    if system() == "Windows":
+                        log.debug("Opening report. (Windows)")
+                        os.startfile(report_path) 
+                    elif system() == "Linux":
+                        log.debug("Opening report. (Linux)")
+                        retcode = subprocess.call(('xdg-open', report_path))
+                        log.debug(f"Child returned {retcode}")
+                    elif system() == "Darwin":
+                        log.debug("Opening report. (Darwin)")
+                        retcode = subprocess.call(('open', report_path))
+                        log.debug(f"Child returned {retcode}")
+
 
     def toggle_checkboxes(self):
         """Shows scan options when the custom scan radio button is selected. Hides them otherwise"""
