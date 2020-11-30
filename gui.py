@@ -5,6 +5,7 @@ import sys
 from datetime import datetime
 from platform import system
 from threading import Thread
+from time import sleep
 
 import requests
 from PyQt5 import QtCore as qtc
@@ -17,6 +18,7 @@ import sqli
 import versions
 import xss
 from report import report_generator
+from ui import resources
 from ui.ui_form import Ui_MainWindow
 from utils.crawler import get_all_links
 from utils.url_vaildator import valid_url
@@ -64,7 +66,13 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
 
+        # Connect signals
+        # Connect the scan button
         self.scanButton.clicked.connect(self.prepare_scan)
+        # Show the about and about Qt page when clicking on the about button
+        self.actionAbout.triggered.connect(lambda: qtw.QMessageBox.about(self, "About", "Web Security Testing Tool"))
+        self.actionAbout_Qt.triggered.connect(lambda: qtw.QMessageBox.aboutQt(self, "About Qt"))
+        # Connect the URLError signal to show an error popup
         self.UrlError.connect(self.errorPopup)
         # Connect checkboxes and radio buttons to show/hide scan options
         self.customScanRadioButton.clicked.connect(self.toggle_checkboxes)
@@ -74,15 +82,18 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.xssCheckBox.clicked.connect(self.toggle_checkboxes)
         self.ciCheckBox.clicked.connect(self.toggle_checkboxes)
 
+        # Set the window icon
+        icon = qtg.QIcon()
+        icon.addPixmap(qtg.QPixmap(":/logo.png"), qtg.QIcon.Normal, qtg.QIcon.Off)
+        self.setWindowIcon(icon)
+
         # Initialize the log box
-        
         self.logTextBox = QTextEditLogger(self)
         self.logTextBox.widget.setVisible(False)
         # Set the log format of the box
         self.logTextBox.setFormatter(
             logging.Formatter('[%(levelname)s] %(message)s'))
         logging.getLogger().addHandler(self.logTextBox)
-
         # Add the text box widget to the predefined layout
         self.logLayout.addWidget(self.logTextBox.widget)
         # self.urlLineEdit.setText("http://dvwa-ubuntu/vulnerabilities/sqli/")
@@ -91,7 +102,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.cookieLineEdit.setText(
             "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
 
-        # Initialized variables
+        # Initialize variables
         self.alive_thread_count = 0
         self.max_thread_count = 0
         self.stop_threads = False
@@ -103,8 +114,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.progressBar.setHidden(True)
         self.toggle_checkboxes()
 
+
     def errorPopup(self, text):
         qtw.QMessageBox.critical(self, 'Error', text)
+
 
     def prepare_scan(self):
         """This function is called before scanning. 
@@ -144,10 +157,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.progressBar.setMaximum(0)
 
         # Start the scan thread
-        scan = Thread(target=self.scan)
+        scan = Thread(target=self._scan)
         scan.start()
 
-    def scan(self):
+    def _scan(self):
         # Get what the entered URL and the cookie
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
@@ -217,6 +230,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.progressBar.setMaximum(100)
         # For each page start threads to check for selcted vulnerabilities
         for url in urls:
+            if self.stop_threads:
+                return
             if check_data:
                 data_thread = Thread(
                     target=data.check, args=(session, url, self.thread_signal, lambda: self.stop_threads))
@@ -378,6 +393,37 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.dataCheckBox.setVisible(show)
         self.versionCheckBox.setVisible(show)
 
+
+    def closeEvent(self, e):
+        if self.scanButton.text() == "Stop" or self.scanButton.text() == "Stopping...":
+            # A scan is still in progress
+            reply = qtw.QMessageBox.question(self, 
+                                            "Scan in progress", 
+                                            "A scan is still in progress. Do you really want to cancel it and quit?"
+                                            )
+            if reply == qtw.QMessageBox.Yes:
+                # Exit
+                # Hide the main window
+                self.hide()
+                self.stop_threads = True
+                if self.alive_thread_count == 0:
+                    e.accept()
+                # Wait 10 seconds then terminate
+                sleep(5)
+                if self.alive_thread_count == 0:
+                    e.accept()
+                sleep(5)
+                e.accept()
+                
+            elif reply == qtw.QMessageBox.No:
+                # Return
+                e.ignore()
+            else:
+                # Should never be reached
+                e.accept()
+        else:
+            # No scan in running. Exit
+            e.accept()
 
 def run():
     app = qtw.QApplication(sys.argv)
