@@ -437,6 +437,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
 def run():
     app = qtw.QApplication(sys.argv)
     window = MainWindow()
+    window.resize(700, 300)
     window.show()
     sys.exit(app.exec_())
 
