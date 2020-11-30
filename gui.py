@@ -29,6 +29,15 @@ session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
 session.mount("http://", adapter)
 
+About = """Web Security Testing Tool.
+
+This is a tool made for CSC497: Graduation Project.
+
+Almothana Alsalman  437100429@student.ksu.edu.sa
+Abdullah Bin-Saif   437101178@student.ksu.edu.sa
+Talal Alqhtany      437103384@student.ksu.edu.sa 
+Nabil Almutairi     437106366@student.ksu.edu.sa 
+"""
 
 class ThreadSignal(qtc.QObject):
     finished = qtc.pyqtSignal()
@@ -70,7 +79,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Connect the scan button
         self.scanButton.clicked.connect(self.prepare_scan)
         # Show the about and about Qt page when clicking on the about button
-        self.actionAbout.triggered.connect(lambda: qtw.QMessageBox.about(self, "About", "Web Security Testing Tool"))
+        self.actionAbout.triggered.connect(lambda: qtw.QMessageBox.about(self, "About WSTT", About))
         self.actionAbout_Qt.triggered.connect(lambda: qtw.QMessageBox.aboutQt(self, "About Qt"))
         # Connect the URLError signal to show an error popup
         self.UrlError.connect(self.errorPopup)
@@ -186,8 +195,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
 
         # Check if there is a URL and is valid
         if url:
-            # if the URL doesn't start with http:// or https://, add http:// to the begining to the URL
-            if not url.startswith(("http://", "https://")):
+            # if the URL doesn't start with http, add http:// to the begining to the URL
+            if not url.startswith("http"):
                 url = "http://" + url
             # Add the URL to the report
             report_generator.url = url
