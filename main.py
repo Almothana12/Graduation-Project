@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Scan a website for common web vulnerabilites
 
 Usage:
@@ -10,10 +11,13 @@ Options:
     -C, --command-injection        Scan for command injection
         --crawl                    Scan all pages in the website
     -D, --data                     Scan for sensitve data
+        --fullscan                 Runs a full scan on the URL. Scans with DOM and time-based method, and more payloads.
         --gui                      Start the graphical interface
     -h, --help                     Show this screen
-        --no-dom                   Don't Scan for DOM-based XSS
-        --no-time-based            Don't Scan using time-based method.
+        --html                     Generate an HTML report
+        --dom                      Scan for DOM-based XSS
+        --time-based               Scan using time-based method
+        --pdf                      Generate a PDF report
     -S, --sqli                     Scan for SQLi
         --time=<seconds>           The seconds to inject in time-based TODO
         --verbose                  Show more info
@@ -47,33 +51,39 @@ def main():
     args = docopt(__doc__)
 
     if args['--verbose']:
-        # Show INFO level logs
-        start_logging(log_level="INFO")
+        # Show DEBUG level logs
+        start_logging(log_level="DEBUG")
     else:
-        # Don't show INFO level logs 
+        # Don't show DEBUG level logs 
         start_logging(log_level="INFO")
-        # logformatter.start_logging(log_level="WARNING") TODO
 
+    # If the GUI option is specified or no option is specified
     if args['--gui'] or all(not x for x in args.values()):
         logging.info("Launching GUI...")
         gui.run()
         return
 
-    # Get the datetime without microseconds
+    # Get the starting datetime without microseconds
     report_generator.start_time = datetime.now().replace(microsecond=0)
     
     url = ""
     if args['<url>']:
-        # if the URL doesn't start with http:// or https://
-        if not args['<url>'].startswith(("http://", "https://")):
+        # if the URL doesn't start with http
+        if not args['<url>'].startswith("http"):
             # Add http:// to the begining to the URL
             url = "http://" + args['<url>']
         else:
             url = args['<url>']
-
+        # Add the URL to the report
+        report_generator.url = url
+    else:
+        # Should never be reached
+        logging.critical("No URL to scan. Exiting...")
+        return
     if args['--cookie']:
         session.headers['Cookie'] = args['--cookie']
 
+    # Check if the URL is valid and reachable
     if not valid_url(url, session):
         return
 
@@ -98,34 +108,36 @@ def main():
         # Scan for all vulnerabilities
         scan_all = True
 
+    # Runs a full scan on the URL
+    fullscan = args['--fullscan']
     # Scan for SQLi and CI using Time-based method?
-    use_time_based = not args['--no-time-based']
+    use_time_based = args['--time-based'] or fullscan
     # Scan for XSS using DOM-based method?
-    use_dom = not args['--no-dom']
+    use_dom = args['--dom'] or fullscan
 
     if args['--versions'] or scan_all:
         versions.check(session, url)
     for url in urls:
-        if args['--data']:
+        logging.debug(f"Scanning {url}")
+        if args['--data'] or scan_all:
             data.check(session, url)
-        if args['--sqli']:
-            sqli.check(session, url, use_time_based)
-        if args['--xss']:
-            xss.check(session, url, use_dom)
-        if args['--command-injection']:
+        if args['--sqli'] or scan_all:
+            sqli.check(session, url, use_time_based, fullscan)
+        if args['--xss'] or scan_all:
+            xss.check(session, url, use_dom, fullscan)
+        if args['--command-injection'] or scan_all:
             command_injection.check(session, url, use_time_based)
-        if scan_all:
-            data.check(session, url)
-            sqli.check(session, url, use_time_based)
-            xss.check(session, url, use_dom)
-            command_injection.check(session, url, use_time_based)
-    
+
     # Get the datetime without microseconds
     report_generator.finish_time = datetime.now().replace(microsecond=0)
-    # Generate a report
-    report_generator.generate_report()
+    if args["--html"] or args["--pdf"]:
+        # Generate a report
+        report_generator.generate_report(html=args["--html"], pdf=args["--pdf"])
+
     # close the requests session
     session.close()
+    # Close the browser
+    xss.quit()
 
 if __name__ == "__main__":
     main()
