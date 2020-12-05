@@ -1,5 +1,5 @@
 import logging
-from os import remove
+import os
 
 import pdfkit
 from jinja2 import Environment, FileSystemLoader
@@ -22,6 +22,8 @@ vuln_count = 0
 pages_count = 0
 
 url = ""
+
+scan_mode = ""
 
 class Page:
 
@@ -87,7 +89,7 @@ def add_vulnerability(vulnerability, url, *args, **kwargs):
         pages.append(Page(url, dict))
 
 
-def generate_report(pdf=False):
+def generate_report(html=False, pdf=False):
     """Generate an HTML or PDF report of all the detected vulnerabilities.
     Returns the path to the generated report."""
     if not pages:
@@ -105,26 +107,47 @@ def generate_report(pdf=False):
         template = env.get_template("template.html")
 
     total_time = finish_time - start_time
-    info = {"Start Time": start_time, "Finish Time": finish_time, "Total Time": total_time, "Vulnerabilities Found": vuln_count, "Pages Scanned": pages_count}
-    # Add the pages list to the template.
+    
+    info = {"Start Time": start_time, 
+            "Finish Time": finish_time, 
+            "Total Time": total_time, 
+            "Vulnerabilities Found": vuln_count, 
+            "Pages Scanned": pages_count,
+            "Scan Mode": scan_mode
+    }
+    # Add the variables to the template.
     template_vars = {"pages": pages, "info": info, "versions":versions, "URL":url}
     html_out = template.render(template_vars)
 
-    filename = "" # TODO 
+    filename = "report" # TODO
 
     # Write the generated HTML to file.
-    report = open("report/report.html", "w")
+    report = open("report/" + filename + ".html", "w")
+    htmlpath = os.path.realpath(report.name)
+    log.debug(f"Writing HTML report to: {htmlpath}")
     report.write(html_out)
     report.close()
     if pdf:
         # Convert the HTML file to PDF
         options = {"enable-local-file-access": None, 'quiet': ''}
-        pdfkit.from_file("report/report.html", "report/report.pdf", options=options)
-        # Remove the HTML file
-        remove("report/report.html")
-        return "report/report.pdf"
+        pdfpath = os.path.dirname(htmlpath) + "/" + filename + ".pdf"
+        log.debug(f"Writing PDF report to: {pdfpath}")
+        try:
+            pdfkit.from_file(htmlpath, pdfpath, options=options)
+        except:
+            log.error("Could not generate the PDF report. HTML report is generated instead. wkhtmltopdf is required to generate PDF reports.")
+            return htmlpath
+        log.info(f"PDF report generated to: {pdfpath}")
+        if not html:
+            # Remove the HTML file
+            log.debug(f"Removing: {htmlpath}")
+            os.remove(htmlpath)
+        else:
+            log.info(f"HTML report generated to: {htmlpath}")
+        return pdfpath
     else:
-        return "report/report.html"
+        log.info(f"HTML report generated to: {htmlpath}")
+        return htmlpath
 
 
 if __name__ == "__main__":

@@ -29,14 +29,20 @@ session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
 session.mount("http://", adapter)
 
-About = """Web Security Testing Tool.
+About = """
+WSTT: Web Security Testing Tool.
 
-This is a tool made for CSC497: Graduation Project.
+This tool is made for CSC497: Graduation Project.
 
 Almothana Alsalman  437100429@student.ksu.edu.sa
 Abdullah Bin-Saif   437101178@student.ksu.edu.sa
 Talal Alqhtany      437103384@student.ksu.edu.sa 
-Nabil Almutairi     437106366@student.ksu.edu.sa 
+Nabil Almutairi     437106366@student.ksu.edu.sa
+
+GitHub:
+https://github.com/Almothana12/Graduation-Project
+
+WSTT is licenced under GNU GPL-3.0.
 """
 
 class ThreadSignal(qtc.QObject):
@@ -75,6 +81,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         super().__init__(*args, **kwargs)
         self.setupUi(self)
 
+        self.setWindowTitle("WSTT") # TODO
+
         # Connect signals
         # Connect the scan button
         self.scanButton.clicked.connect(self.prepare_scan)
@@ -106,10 +114,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Add the text box widget to the predefined layout
         self.logLayout.addWidget(self.logTextBox.widget)
         # self.urlLineEdit.setText("http://dvwa-ubuntu/vulnerabilities/sqli/")
-        self.urlLineEdit.setText("http://dvwa-win10/vulnerabilities/xss_r/")
-        # self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
-        self.cookieLineEdit.setText(
-            "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
+        # self.urlLineEdit.setText("http://dvwa-win10/vulnerabilities/xss_r/")
+        self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
+        # self.cookieLineEdit.setText(
+            # "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
 
         # Initialize variables
         self.alive_thread_count = 0
@@ -177,6 +185,12 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Check if quick scan or full scan is selected
         fullscan = self.fullScanRadioButton.isChecked()
         quickscan = self.qucikScanRadioButton.isChecked()
+        if fullscan:
+            report_generator.scan_mode = "Full Scan"
+        elif quickscan:
+            report_generator.scan_mode = "Quick Scan"
+        else:
+            report_generator.scan_mode = "Custom Scan"
 
         # Check for these if quick scan, full scan, or the checkbox is checked
         check_xss = quickscan or fullscan or self.xssCheckBox.isChecked()
@@ -189,9 +203,9 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         crawl = self.allPagesRadioButton.isChecked()
 
         # Check DOM and time-based if full scan or selected
-        check_sql_time = fullscan or self.sqlTimeCheckBox.isChecked()
-        check_ci_time = fullscan or self.ciTimeCheckBox.isChecked()
-        check_dom_based = fullscan or self.domCheckBox.isChecked()
+        check_sql_time = not quickscan and (fullscan or self.sqlTimeCheckBox.isChecked())
+        check_ci_time = not quickscan and (fullscan or self.ciTimeCheckBox.isChecked())
+        check_dom_based = not quickscan and (fullscan or self.domCheckBox.isChecked())
 
         # Check if there is a URL and is valid
         if url:
@@ -276,6 +290,8 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             # No threads left
             # Set the progress bar to 100%
             self.progressBar.setValue(100)
+            # Return the button text to Scan
+            self.scanButton.setText("Scan")
             # close the requests session
             session.close()
             # Close the browser
@@ -292,7 +308,6 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 # Show a popup
                 qtw.QMessageBox.information(
                     self, 'Scan Stopped', 'Scanning Stopped successfully')
-            self.scanButton.setText("Scan")
         else:
             # There are threads that are still running
             # Update the progress bar
@@ -374,7 +389,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Show/Hide SQLi Checkboxes
         self.sqliCheckBox.setVisible(show)
         self.sqlTimeCheckBox.setVisible(show)
-        # If the checkbox is not checked, disable the time-based checkbox
+        # If the SQLi checkbox is not checked, disable the time-based checkbox
         if not self.sqliCheckBox.isChecked():
             self.sqlTimeCheckBox.setDisabled(True)
         else:
@@ -383,7 +398,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Show/Hide XSS Checkboxes
         self.xssCheckBox.setVisible(show)
         self.domCheckBox.setVisible(show)
-        # If the checkbox is not checked, disable the DOM-based checkbox
+        # If the XSS checkbox is not checked, disable the DOM-based checkbox
         if not self.xssCheckBox.isChecked():
             self.domCheckBox.setDisabled(True)
         else:
@@ -392,7 +407,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Show/Hide CI Checkboxes
         self.ciCheckBox.setVisible(show)
         self.ciTimeCheckBox.setVisible(show)
-        # If the checkbox is not checked, disable the time-based checkbox
+        # If the CI checkbox is not checked, disable the time-based checkbox
         if not self.ciCheckBox.isChecked():
             self.ciTimeCheckBox.setDisabled(True)
         else:
@@ -423,7 +438,6 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                     e.accept()
                 sleep(5)
                 e.accept()
-                
             elif reply == qtw.QMessageBox.No:
                 # Return
                 e.ignore()
