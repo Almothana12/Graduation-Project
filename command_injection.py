@@ -10,7 +10,7 @@ from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
 log = logging.getLogger(__name__)
 
-def is_vulnerable(response: requests.Response) -> bool:
+def _is_vulnerable(response: requests.Response) -> bool:
     """Check if the the echo command executed in the server
 
     Args:
@@ -57,17 +57,25 @@ def time_based(session: requests.Session, url: str, time=10, stop=None) -> bool:
                 if stop():
                     payloads_file.close()
                     return
+            # Remove the newline character
             payload = payload.replace("\n", "")
             # Replace "_TIME_" with the actual time
             payload = payload.replace("_TIME_", str(time))
             log.debug("Testing: %s", payload)
-            response = submit_form(form_details, url, payload, session)
-            if not response:
-                continue
-            elapsed = response.elapsed.total_seconds()
-            log.debug(f"Elapsed={elapsed}")
-            if expected - error <= elapsed <= expected + error:
-                log.critical(f"Time-based Command Injection Detected on {response.url}")
+
+            # Timeout is 150% of sleep time
+            timeout = time + (time * 0.5)
+            # Submit the form with the injected payload 
+            try:
+                response = submit_form(form_details, url, payload, session, timeout=timeout)
+                if not response:
+                    # could not inject payload to form, check next form
+                    break
+            except requests.Timeout as e:
+                # If timeout occurred, assume time-based SQLi is successful.
+                log.debug("Timout occurred")
+                log.debug(e)
+                log.critical(f"Time-based Command Injection Detected on {url}")
                 log.info(f"Payload: {payload}")
                 if 'name' in form_details:
                     add_vulnerability("TIME-CI", url, form=form_details['name'], payload=payload)
@@ -76,6 +84,20 @@ def time_based(session: requests.Session, url: str, time=10, stop=None) -> bool:
                     add_vulnerability("TIME-CI", url, form="None", payload=payload)
                 payloads_file.close()
                 return True
+            else:
+                # No timeout occurred, check the elapsed time
+                elapsed = response.elapsed.total_seconds()
+                log.debug(f"Elapsed={elapsed}")
+                if expected - error <= elapsed <= expected + error:
+                    log.critical(f"Time-based Command Injection Detected on {response.url}")
+                    log.info(f"Payload: {payload}")
+                    if 'name' in form_details:
+                        add_vulnerability("TIME-CI", url, form=form_details['name'], payload=payload)
+                        log.info(f"Form name: {form_details['name']}")
+                    else:
+                        add_vulnerability("TIME-CI", url, form="None", payload=payload)
+                    payloads_file.close()
+                    return True
     payloads_file.close()
     return False
 
@@ -117,8 +139,9 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
             # log.debug(f"ci: Testing: {payload}")
             response = submit_form(form_details, url, payload, session)
             if not response:
-                continue
-            if is_vulnerable(response):
+                # could not inject payload to form, check next form
+                break
+            if _is_vulnerable(response):
                 log.critical(f"Command Injection found on {response.url}")
                 log.info(f"Payload: {payload}")
                 if 'name' in form_details:

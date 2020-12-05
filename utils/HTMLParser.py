@@ -58,7 +58,8 @@ def get_form_details(form: bs4.element.Tag) -> dict:
 def submit_form(form_details: dict, 
                 url: str, 
                 payload: str, 
-                session: requests.Session) -> requests.models.Response:
+                session: requests.Session,
+                timeout=5) -> requests.models.Response:
     """Fill the given `form` with `payload` and submit it to `url`
 
     Args:
@@ -71,7 +72,6 @@ def submit_form(form_details: dict,
         requests.models.Response: The HTTP response from the web server
     """
     # log.debug(f"submit_form: form_details={form_details} URL={url} payload={payload}")
-
     # construct the full URL if the url provided in action is relative
     target_url = urljoin(url, form_details["action"])
     payload_injected = False
@@ -112,15 +112,14 @@ def submit_form(form_details: dict,
 
     if not data or not payload_injected:
         log.debug(f"submit_form: No data to submit for form: {form_details} in {url}")
-        return ""
+        return None
     if form_details["method"] == "post":
-        # response = session.post(target_url, data=data, timeout=(3.05, 7))
-        response = session.post(target_url, data=data)
-
+        response = session.post(target_url, data=data, timeout=timeout)
         # log.debug(f"submit_form: POST: {response.url} Data: {data}")
     elif form_details["method"] == "get":
-        response = session.get(target_url, params=data)
+        response = session.get(target_url, params=data, timeout=timeout)
         # log.debug(f"submit_form: GET: {response.url}")
     else:
-        log.warning("submit_form: Invalid or no form method")
+        log.debug("submit_form: Invalid or no form method")
+        return None
     return response
