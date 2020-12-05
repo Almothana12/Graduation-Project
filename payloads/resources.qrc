@@ -1,0 +1,13 @@
+<!DOCTYPE RCC> 
+<RCC version="1.0">
+    <qresource>
+        <file>XSSPayloads-quick</file>
+        <file>XSSPayloads-full</file>
+        <file>CommandInjectionPayloads</file>
+        <file>CommandInjectionTimePayloads</file>
+        <file>SQLPayloads-quick</file>
+        <file>SQLPayloads-full</file>
+        <file>SQLErrors</file>
+        <file>SQLTimePayloads</file>
+    </qresource>
+</RCC>

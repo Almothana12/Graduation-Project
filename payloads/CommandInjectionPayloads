@@ -1,5 +1,9 @@
-ttt || echo CommandInjectionDetected
-ttt && echo CommandInjectionDetected
+test || echo CommandInjectionDetected
+123 || echo CommandInjectionDetected
+test && echo CommandInjectionDetected
+123 && echo CommandInjectionDetected
+test & echo CommandInjectionDetected
 123 & echo CommandInjectionDetected
+test; echo CommandInjectionDetected
 123; echo CommandInjectionDetected
 `echo CommandInjectionDetected`
