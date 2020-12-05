@@ -129,7 +129,7 @@ def start_logging(console_file="stdout", console_color=True, log_level="INFO"):
         console_log_level=log_level, 
         console_log_color=console_color,
         console_format="%(color_on)s[%(levelname)s] %(message)s%(color_off)s",
-        logfile_file="WS2T.log",
+        logfile_file="WSTT.log",
         logfile_mode="w",
         logfile_log_level="DEBUG",
         logfile_log_color=False,
