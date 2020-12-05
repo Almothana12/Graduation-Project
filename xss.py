@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 browser = None
 
-def init_browser(url: str, str_cookie=None):
+def _init_browser(url: str, str_cookie=None):
     global browser
     if browser:
         # Browser is already initilized
@@ -93,7 +93,7 @@ def init_browser(url: str, str_cookie=None):
             browser.add_cookie({"name": key, "value": value})
     return browser
 
-def check_dom(url: str, str_cookie=None):
+def _check_dom(url: str, str_cookie=None):
     """Check `url` for DOM-Based XSS
 
     Args:
@@ -103,7 +103,7 @@ def check_dom(url: str, str_cookie=None):
     Returns:
         bool: True if DOM-Based XSS found, False if not.
     """
-    browser = init_browser(url, str_cookie)
+    browser = _init_browser(url, str_cookie)
     if not browser:
         return False
     browser.get(url)
@@ -137,12 +137,13 @@ def check(session: requests.Session, url: str, dom=True, fullscan=False, sig=Non
             form_details = get_form_details(form)
             response = submit_form(form_details, url, dom_payload, session)
             if not response:
-                continue
+                # could not inject payload to form, check next form
+                break
             dom_url = unquote_plus(response.url)
             try:
-                vulnerable = check_dom(dom_url, session.headers['Cookie'])
+                vulnerable = _check_dom(dom_url, session.headers['Cookie'])
             except KeyError:
-                vulnerable = check_dom(dom_url, None)
+                vulnerable = _check_dom(dom_url, None)
         if vulnerable:
             
             log.critical(f"DOM-based XSS detected on {response.url}")
