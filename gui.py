@@ -57,6 +57,8 @@ class QTextEditLogger(logging.Handler, qtc.QObject):
         qtc.QObject.__init__(self)
         self.widget = qtw.QTextEdit(parent)
         self.widget.setReadOnly(True)
+        # Disable line wrap
+        self.widget.setLineWrapMode(qtw.QTextEdit.NoWrap)
         self.appendText.connect(self.widget.append)
         self.setLevel("INFO")
 
