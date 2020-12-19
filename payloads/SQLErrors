@@ -63,6 +63,7 @@ mysql error
 Type mismatch
 Unable to jump to row
 Unclosed quotation mark before the character string
+Something went wrong
 Unterminated string constant
 Warning: Cannot modify header information - headers already sent
 Warning: Supplied argument is not a valid File-Handle resource in
