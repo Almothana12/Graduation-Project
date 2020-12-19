@@ -12,16 +12,12 @@ from PyQt5 import QtCore as qtc
 from PyQt5 import QtGui as qtg
 from PyQt5 import QtWidgets as qtw
 
-import command_injection
-import data
-import sqli
-import versions
-import xss
 from report import report_generator
 from ui import resources
 from ui.ui_form import Ui_MainWindow
 from utils.crawler import get_all_links
 from utils.url_vaildator import valid_url
+from vulnerabilities import command_injection, data, sqli, versions, xss
 
 log = logging.getLogger(__name__)
 
@@ -91,6 +87,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Show the about and about Qt page when clicking on the about button
         self.actionAbout.triggered.connect(lambda: qtw.QMessageBox.about(self, "About WSTT", About))
         self.actionAbout_Qt.triggered.connect(lambda: qtw.QMessageBox.aboutQt(self, "About Qt"))
+        self.actionHelp.triggered.connect(self.help)
         # Connect the URLError signal to show an error popup
         self.UrlError.connect(self.errorPopup)
         # Connect checkboxes and radio buttons to show/hide scan options
@@ -117,15 +114,14 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.logLayout.addWidget(self.logTextBox.widget)
         # self.urlLineEdit.setText("http://dvwa-ubuntu/vulnerabilities/sqli/")
         # self.urlLineEdit.setText("http://dvwa-win10/vulnerabilities/xss_r/")
-        self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
+        # self.urlLineEdit.setText("http://www.insecurelabs.org/Task/Rule1")
         # self.cookieLineEdit.setText(
             # "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low")
 
         # Initialize variables
-        self.alive_thread_count = 0
-        self.max_thread_count = 0
+        self.finished_threads = 0
+        self.total_thread_count = 0
         self.stop_threads = False
-        self.threads = []
         # Signal for each thread. Will emit after thread finished
         self.thread_signal = ThreadSignal()
         self.thread_signal.finished.connect(self.thread_finished)
@@ -162,9 +158,9 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         # Change the text of the button to "Stop"
         self.scanButton.setText("Stop")
         # The total number of threads
-        self.max_thread_count = 0
-        # The number of alive threds
-        self.alive_thread_count = 0
+        self.total_thread_count = 0
+        # The number of finished threds
+        self.finished_threads = 0
         # Stop flag
         self.stop_threads = False
 
@@ -176,10 +172,10 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.progressBar.setMaximum(0)
 
         # Start the scan thread
-        scan = Thread(target=self._scan)
+        scan = Thread(target=self.scan)
         scan.start()
 
-    def _scan(self):
+    def scan(self):
         # Get what the entered URL and the cookie
         url = self.urlLineEdit.text()
         cookie = self.cookieLineEdit.text()
@@ -230,6 +226,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
             # No URL entered
             self.UrlError.emit("No URL Entered")
             self.scanButton.setText("Scan")
+            self.logTextBox.widget.setVisible(False)
             self.progressBar.setVisible(False)
             return
 
@@ -248,47 +245,43 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         if check_version:
             versions_thread = Thread(
                 target=versions.check, args=(session, url, self.thread_signal, lambda: self.stop_threads, False))
-            self.max_thread_count += 1
-            self.alive_thread_count += 1
             versions_thread.start()
+        # The number of vulnerabilities to check
+        vulnerabilites = check_data + check_sqli + check_xss + check_ci
+        # The total number of threads to be started
+        self.total_thread_count = vulnerabilites * len(urls)
         # Start the progress bar
         self.progressBar.setMaximum(100)
         # For each page start threads to check for selcted vulnerabilities
         for url in urls:
-            if self.stop_threads:
-                return
             if check_data:
                 data_thread = Thread(
                     target=data.check, args=(session, url, self.thread_signal, lambda: self.stop_threads))
-                self.max_thread_count += 1
-                self.alive_thread_count += 1
                 data_thread.start()
+                data_thread.join()
             if check_sqli:
                 sqli_thread = Thread(target=sqli.check, args=(
                     session, url, check_sql_time, fullscan, self.thread_signal, lambda: self.stop_threads))
-                self.max_thread_count += 1
-                self.alive_thread_count += 1
                 sqli_thread.start()
+                sqli_thread.join()
             if check_xss:
                 xss_thread = Thread(target=xss.check, args=(
                     session, url, check_dom_based, fullscan, self.thread_signal, lambda: self.stop_threads))
-                self.max_thread_count += 1
-                self.alive_thread_count += 1
                 xss_thread.start()
+                xss_thread.join()
             if check_ci:
                 ci_thread = Thread(target=command_injection.check, args=(
                     session, url, check_ci_time, self.thread_signal, lambda: self.stop_threads))
-                self.max_thread_count += 1
-                self.alive_thread_count += 1
                 ci_thread.start()
+                ci_thread.join()
 
     def thread_finished(self):
         """This will be called each time a thread is finished.
         Updates the progress bar and if all threads finished it will show a popup
         """
         # A thread is finished
-        self.alive_thread_count -= 1
-        if self.alive_thread_count == 0:
+        self.finished_threads += 1
+        if self.finished_threads == self.total_thread_count:
             # No threads left
             # Set the progress bar to 100%
             self.progressBar.setValue(100)
@@ -313,8 +306,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         else:
             # There are threads that are still running
             # Update the progress bar
-            finished_threads = self.max_thread_count - self.alive_thread_count
-            percentage = finished_threads / self.max_thread_count * 100
+            percentage = self.finished_threads / self.total_thread_count * 100
             self.progressBar.setValue(int(percentage))
 
     def scan_complete(self):
@@ -336,6 +328,7 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         msgbox.setStandardButtons(qtw.QMessageBox.Ok)
         msgbox.setDefaultButton(qtw.QMessageBox.Ok)
         # msgbox.setDetailedText("DETAILS")
+        
 
         reply = msgbox.exec_()
         if reply == qtw.QMessageBox.Ok:
@@ -420,7 +413,23 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
         self.versionCheckBox.setVisible(show)
 
 
+    def help(self):
+        if system() == "Windows":
+            log.debug("Opening help. (Windows)")
+            os.startfile("README.pdf") 
+        elif system() == "Linux":
+            log.debug("Opening help. (Linux)")
+            retcode = subprocess.call(('xdg-open', "README.pdf"))
+            log.debug(f"Child returned {retcode}")
+        elif system() == "Darwin":
+            log.debug("Opening help. (Darwin)")
+            retcode = subprocess.call(('open', "README.pdf"))
+            log.debug(f"Child returned {retcode}")
+
+
     def closeEvent(self, e):
+        """This function runs when the user closed the window.
+        """
         if self.scanButton.text() == "Stop" or self.scanButton.text() == "Stopping...":
             # A scan is still in progress
             reply = qtw.QMessageBox.question(self, 
@@ -432,11 +441,11 @@ class MainWindow(qtw.QMainWindow, Ui_MainWindow):
                 # Hide the main window
                 self.hide()
                 self.stop_threads = True
-                if self.alive_thread_count == 0:
+                if self.finished_threads == self.total_thread_count:
                     e.accept()
                 # Wait 10 seconds then terminate
                 sleep(5)
-                if self.alive_thread_count == 0:
+                if self.finished_threads == self.total_thread_count:
                     e.accept()
                 sleep(5)
                 e.accept()
