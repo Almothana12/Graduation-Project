@@ -59,7 +59,7 @@ def submit_form(form_details: dict,
                 url: str, 
                 payload: str, 
                 session: requests.Session,
-                timeout=5) -> requests.models.Response:
+                timeout=10) -> requests.models.Response:
     """Fill the given `form` with `payload` and submit it to `url`
 
     Args:
@@ -111,7 +111,7 @@ def submit_form(form_details: dict,
             data[textarea_name] = textarea_value
 
     if not data or not payload_injected:
-        log.debug(f"submit_form: No data to submit for form: {form_details} in {url}")
+        # log.debug(f"submit_form: No data to submit for form: {form_details} in {url}")
         return None
     if form_details["method"] == "post":
         response = session.post(target_url, data=data, timeout=timeout)

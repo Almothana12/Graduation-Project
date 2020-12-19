@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 all_urls = set()
 
 
-def is_valid(url):
+def _is_valid(url):
     """
     Check whether `url` is a valid URL.
     """
@@ -17,7 +17,7 @@ def is_valid(url):
     return bool(parsed.netloc) and bool(parsed.scheme)
 
 
-def get_links(session, url):
+def _get_links(session, url):
     """
     Return all URLs that is found on `url` in which it belongs to the same website
     """
@@ -36,7 +36,7 @@ def get_links(session, url):
         parsed_href = urlparse(href)
         # remove URL GET parameters, URL fragments, etc.
         href = parsed_href.scheme + "://" + parsed_href.netloc + parsed_href.path
-        if not is_valid(href):
+        if not _is_valid(href):
             # not a valid URL
             logging.debug(f"not valid href: {href} ")
             continue
@@ -54,7 +54,7 @@ def get_links(session, url):
     return urls
 
 
-def crawl(session, url):
+def _crawl(session, url):
     """Crawls a web page and extracts all links. 
     The links will be stored in the `all_urls` set
 
@@ -62,9 +62,9 @@ def crawl(session, url):
         session (requests.Session): A session object.
         url (str): The url to crawl from.
     """
-    links = get_links(session, url)
+    links = _get_links(session, url)
     for link in links:
-        crawl(session, link)
+        _crawl(session, link)
 
 
 def get_all_links(session, url):
@@ -78,7 +78,7 @@ def get_all_links(session, url):
         List: A list containing the URLs of all the pages in the website. 
         This will only contain internal URLs.
     """
-    crawl(session, url)
+    _crawl(session, url)
     return all_urls
 
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     # session.headers["Cookie"] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
     url = "http://testphp.vulnweb.com/"
 
-    crawl(session, url)
+    _crawl(session, url)
 
     for url in all_urls:
         print(url)

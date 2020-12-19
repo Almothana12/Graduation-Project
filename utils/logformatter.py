@@ -48,7 +48,7 @@ class LogFormatter(logging.Formatter):
         return super(LogFormatter, self).format(record, *args, **kwargs)
 
 # Setup logging
-def setup_logging(console_log_output, console_log_level, console_log_color, console_format, logfile_file, logfile_mode, logfile_log_level, logfile_log_color, logfile_format):
+def _setup_logging(console_log_output, console_log_level, console_log_color, console_format, logfile_file, logfile_mode, logfile_log_level, logfile_log_color, logfile_format):
 
     # Create logger
     # For simplicity, we use the root logger, i.e. call 'logging.getLogger()'
@@ -115,7 +115,7 @@ def setup_logging(console_log_output, console_log_level, console_log_color, cons
 # Enable ANSI terminal on Microsoft Windows (Windows 10 only)
 # https://stackoverflow.com/a/36760881/1976617
 # https://docs.microsoft.com/en-us/windows/console/setconsolemode
-def windows_enable_ansi_terminal():
+def _windows_enable_ansi_terminal():
     import ctypes
     kernel32 = ctypes.windll.kernel32
     result = kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
@@ -124,7 +124,7 @@ def windows_enable_ansi_terminal():
 
 def start_logging(console_file="stdout", console_color=True, log_level="INFO"):
 
-    setup_logging(
+    _setup_logging(
         console_log_output=console_file,
         console_log_level=log_level, 
         console_log_color=console_color,
@@ -133,11 +133,11 @@ def start_logging(console_file="stdout", console_color=True, log_level="INFO"):
         logfile_mode="w",
         logfile_log_level="DEBUG",
         logfile_log_color=False,
-        logfile_format="%(color_on)s[%(created)d] [%(levelname)s] %(message)s%(color_off)s"
+        logfile_format="%(color_on)s[%(asctime)s] [%(levelname)s] %(name)s: %(message)s%(color_off)s"
     )
     if (sys.platform == "win32"):
         try:
-            windows_enable_ansi_terminal()
+            _windows_enable_ansi_terminal()
         except:
             logging.debug("Could not enable Windows ANSI terminal")
             
