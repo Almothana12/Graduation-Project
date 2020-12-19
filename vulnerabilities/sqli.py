@@ -5,7 +5,7 @@ from urllib.parse import unquote_plus, urljoin
 import requests
 from PyQt5.QtCore import QFile
 
-import payloads
+from payloads import payloads
 from report.report_generator import add_vulnerability
 from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
@@ -123,6 +123,8 @@ def check(session: requests.Session, url: str, timed=True, fullscan=False, sig=N
     if timed:
         # Use time-based method
         if time_based(session, url, stop=stop):
+            if sig:
+                sig.finished.emit()
             return True
     if stop:
         # check if there is a stop signal
@@ -158,7 +160,7 @@ def check(session: requests.Session, url: str, timed=True, fullscan=False, sig=N
             payload = payload.replace("\n", "")  # remove newline char
             # print(f"Testing: {url}")
             response = submit_form(form_details, url, payload, session)
-            if not response:
+            if response == None:
                 # could not inject payload to form, check next form
                 break
             if _is_vulnerable(response, errors):

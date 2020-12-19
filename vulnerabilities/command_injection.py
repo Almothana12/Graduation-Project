@@ -5,6 +5,7 @@ from urllib.parse import unquote_plus, urljoin
 import requests
 from PyQt5.QtCore import QFile
 
+from payloads import payloads
 from report.report_generator import add_vulnerability
 from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
@@ -68,7 +69,7 @@ def time_based(session: requests.Session, url: str, time=10, stop=None) -> bool:
             # Submit the form with the injected payload 
             try:
                 response = submit_form(form_details, url, payload, session, timeout=timeout)
-                if not response:
+                if response == None:
                     # could not inject payload to form, check next form
                     break
             except requests.Timeout as e:
@@ -116,6 +117,8 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
     if timed:
         # Use time-based method
         if time_based(session, url, stop=stop):
+            if sig:
+                sig.finished.emit()
             return True
     # Open the Command Injection payloads file
     payloads_file = QFile(":/CommandInjectionPayloads")
@@ -138,7 +141,7 @@ def check(session, url, timed=True, sig=None, stop=None) -> bool:
             payload = payload.replace("\n", "")  # remove newline char
             # log.debug(f"ci: Testing: {payload}")
             response = submit_form(form_details, url, payload, session)
-            if not response:
+            if response == None:
                 # could not inject payload to form, check next form
                 break
             if _is_vulnerable(response):

@@ -11,7 +11,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 
-import payloads
+from payloads import payloads
 from report.report_generator import add_vulnerability
 from utils.HTMLParser import get_all_forms, get_form_details, submit_form
 
@@ -136,7 +136,7 @@ def check(session: requests.Session, url: str, dom=True, fullscan=False, sig=Non
         for form in forms:
             form_details = get_form_details(form)
             response = submit_form(form_details, url, dom_payload, session)
-            if not response:
+            if response == None:
                 # could not inject payload to form, check next form
                 break
             dom_url = unquote_plus(response.url)
@@ -196,7 +196,7 @@ def check(session: requests.Session, url: str, dom=True, fullscan=False, sig=Non
         sig.finished.emit()
     return vulnerable
 
-def quit():
+async def quit():
     """Close the browser. 
     This should be called after checking for DOM-based XSS
     """

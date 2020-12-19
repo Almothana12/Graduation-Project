@@ -37,7 +37,7 @@ def get_version(name: str) -> str:
             version = re.search(r"\d+\.\d+(\.\d+)*", match.group(1))
             if version:
                 return version.group()
-        return ""
+    return ""
 
 
 def check(session, url, sig=None, stop=None, color=True) -> None:
@@ -53,7 +53,6 @@ def check(session, url, sig=None, stop=None, color=True) -> None:
             return
     response = session.get(url)
     # Fill the headers list
-    # TODO write this in report
     if 'server' in response.headers:
         log.debug(f"Server header found: {response.headers['server']}")
         headers.append(response.headers['server'])
@@ -92,7 +91,6 @@ def check(session, url, sig=None, stop=None, color=True) -> None:
                 else:
                     log.warning(f"{name} version: {server_version}  is outdated")
                 report_generator.add_server_version(name, server_version, outdated=True)
-                
             else:
                 log.info(f"{name} version: {server_version}")
                 report_generator.add_server_version(name, server_version, outdated=False)
@@ -100,6 +98,11 @@ def check(session, url, sig=None, stop=None, color=True) -> None:
         log.warning("A server version is found on the HTTP response header. Attackers could use this information for malicious reasons")
     else:
         log.debug("Could not get server version info")
+
+    for header in headers:
+        if "win" in header.lower():
+            pass
+        # TODO
 
     if sig:
         sig.finished.emit()
