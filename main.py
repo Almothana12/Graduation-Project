@@ -2,15 +2,15 @@
 """Scan a website for common web vulnerabilites
 
 Usage:
-    main.py
-    main.py [options] <url>
-    main.py (-h | --help)
-    main.py (-v | --version)
+    wstt
+    wstt [options] <url>
+    wstt (-h | --help)
+    wstt (-v | --version)
 Options:
     -c, --cookie=<cookie>          Send this Cookie with the requests
     -C, --command-injection        Scan for command injection
         --crawl                    Scan all pages in the website
-    -D, --data                     Scan for sensitve data
+    -D, --data                     Scan for sensitive data
         --fullscan                 Runs a full scan on the URL. Scans with DOM and time-based method, and more payloads.
         --gui                      Start the graphical interface
     -h, --help                     Show this screen
@@ -21,7 +21,7 @@ Options:
     -S, --sqli                     Scan for SQLi
         --time=<seconds>           The seconds to inject in time-based TODO
         --verbose                  Show more info
-    -v, --version                  Show the version
+    -v, --version                  Show the version of WSTT
     -V, --versions                 Scan for the server version
     -X, --xss                      Scan for XSS
 """
@@ -29,26 +29,22 @@ import logging
 from datetime import datetime
 
 import requests
-
-import command_injection
-import data
-import gui
-import sqli
-import versions
-import xss
 from docopt import docopt
+
+import gui
 from report import report_generator
 from utils.crawler import get_all_links
 from utils.logformatter import start_logging
 from utils.url_vaildator import valid_url
+from vulnerabilities import command_injection, data, sqli, versions, xss
 
 session = requests.Session()
-session.headers['Cookie'] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
+# session.headers['Cookie'] = "PHPSESSID=2r5bfcokovgu1hjf1v08amcd1g; security=low"
 
 
 def main():
     # get the command line arguments
-    args = docopt(__doc__)
+    args = docopt(__doc__, version=0.7)
 
     if args['--verbose']:
         # Show DEBUG level logs
