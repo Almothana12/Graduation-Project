@@ -1,6 +1,6 @@
 # WSTT: Web Security Testing Tool
 Scans a website for common web vulnerabilities.
-
+```
 Usage:
     wstt
     wstt [options] <url>
@@ -24,3 +24,4 @@ Options:
     -v, --version                  Show the version of WSTT
     -V, --versions                 Scan for the server version
     -X, --xss                      Scan for XSS
+```
