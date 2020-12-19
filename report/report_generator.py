@@ -3,6 +3,7 @@ import os
 
 import pdfkit
 from jinja2 import Environment, FileSystemLoader
+from report.Page import Page
 
 log = logging.getLogger(__name__)
 
@@ -25,41 +26,16 @@ url = ""
 
 scan_mode = ""
 
-class Page:
-
-    def __init__(self, url, dict):
-        self.sqli = []
-        self.xss = []
-        self.ci = []
-        self.data = []
-        self.url = url
-        self.append(dict)
-
-    def append(self, dict):
-        """Add a new vulnerability to the object.
-
-        Args:
-            dict (dict): A dictionary containing data about the vulnerability.
-        """
-        vuln = dict["vulnerability"]
-        if "SQLi" in vuln:
-            # Add the vulnerabiltiy to the SQLi list.
-            self.sqli.append(dict)
-        elif "XSS" in vuln:
-            # Add the vulnerabiltiy to the XSS list.
-            self.xss.append(dict)
-        elif "CI" in vuln:
-            # Add the vulnerabiltiy to the Command Injection list.
-            self.ci.append(dict)
-        elif "Phone" in vuln or "Email" in vuln:
-            # Add the vulnerabiltiy to the data list.
-            self.data.append(dict)
-        else:
-            logging.debug(f'Unkonw vulnerability: {dict["vulnerability"]}')
 
 def add_server_version(name, version, outdated):
-    versions.append({"name":name, "version":version, "outdated":outdated})
+    """Add a detected server version to the report.
 
+    Args:
+        name (str): The name of the software.
+        version (str): The detected version.
+        outdated (bool): if the version is outdated or not.
+    """
+    versions.append({"name":name, "version":version, "outdated":outdated})
 
 def add_vulnerability(vulnerability, url, *args, **kwargs):
     """Add a detected vulnerability to the report.
@@ -81,7 +57,7 @@ def add_vulnerability(vulnerability, url, *args, **kwargs):
         if page.url == url:
             # Page already exist in the list.
             # Add the new vulnerability to it.
-            page.append(dict)
+            page.append_vuln(dict)
             break
     else:
         # Page does not exist in list.
@@ -106,8 +82,9 @@ def generate_report(html=False, pdf=False):
         # Use the normal template
         template = env.get_template("template.html")
 
+    # Calculate the time it took to complete the scan
     total_time = finish_time - start_time
-    
+
     info = {"Start Time": start_time, 
             "Finish Time": finish_time, 
             "Total Time": total_time, 
@@ -170,6 +147,8 @@ if __name__ == "__main__":
 
     add_server_version("Apache", 2.3, True)
     add_server_version("PHP", 5.3, True)
-    add_server_version("Apache", 2.4, False)
+    # add_server_version("Apache", 2.4, False)
 
-    generate_report(pdf=True)
+    scan_mode = "Quick Scan"
+
+    generate_report(pdf=False, html=True)
